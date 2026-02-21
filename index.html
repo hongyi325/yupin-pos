@@ -148,18 +148,18 @@
         .cart-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 12px 0; font-size: 1.05em; border-bottom: 1px solid var(--bg-body); }
         .cart-details { font-size: 0.85em; color: var(--text-muted); margin-top: 4px; display: block; display: flex; gap: 4px; align-items: center; }
 
-        /* 輸入與控制元件 */
+        /* 輸入與控制元件 (解決裁切與跑版問題：使用高度而非 padding 垂直推擠) */
         .big-input, .table-select, .form-control {
-            font-size: 1.05em; padding: 14px 16px; width: 100%; border-radius: var(--radius-md);
+            font-size: 1.05em; padding: 0 16px; height: 48px; width: 100%; border-radius: var(--radius-md);
             border: 1px solid #E2DED9; text-align: left; box-sizing: border-box;
-            background: var(--bg-body); color: var(--text-main); font-weight: 500; transition: all 0.2s; min-height: 48px;
+            background: var(--bg-body); color: var(--text-main); font-weight: 500; transition: all 0.2s;
         }
         .big-input:focus, .table-select:focus, .form-control:focus { outline: none; border-color: var(--primary); background: #FFF; box-shadow: 0 0 0 4px rgba(156, 131, 106, 0.1); }
-        .big-input { text-align: right; font-size: 1.4em; font-weight: 700; background: #FFF; border-color: var(--border-soft); }
+        .big-input { text-align: right; font-size: 1.4em; font-weight: 700; background: #FFF; border-color: var(--border-soft); height: 54px; }
 
-        .table-select { text-align: center; color: var(--primary); background: #FDFCF9; border-width: 2px; font-weight: 700; cursor: pointer; }
+        .table-select { text-align: center; color: var(--primary); background: #FDFCF9; border-width: 2px; font-weight: 700; cursor: pointer; height: 54px; }
 
-        .small-note { font-size: 1em; padding: 12px 16px; width: 100%; border-radius: var(--radius-md); border: 1px solid #E2DED9; box-sizing: border-box; margin-top: 8px; background: var(--bg-body); min-height: 44px; }
+        .small-note { font-size: 1em; padding: 0 16px; height: 44px; width: 100%; border-radius: var(--radius-md); border: 1px solid #E2DED9; box-sizing: border-box; margin-top: 8px; background: var(--bg-body); }
 
         .total-display { font-size: 2.8em; font-weight: 800; color: var(--danger-red); text-align: right; margin: 16px 0; letter-spacing: -1px; }
 
@@ -225,7 +225,7 @@
         .form-group { margin-bottom: 16px; }
         .form-group label { display: block; font-weight: 600; font-size: 0.95em; color: var(--text-muted); margin-bottom: 8px; }
 
-        /* --- 管理中心 Grid 比例調整 (Issue 2) --- */
+        /* --- 管理中心 Grid 比例調整 --- */
         .admin-layout {
             display: grid;
             grid-template-columns: 2.5fr 1fr; /* 電腦版讓商品品項佔比放大至 71% */
@@ -233,12 +233,12 @@
         }
         .admin-actions { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 
-        /* 管理中心表格設定 (Issue 1 & 2 & 4: 增加 min-width:0 防止 Grid 內爆版) */
+        /* 管理中心表格設定 */
         .admin-table-container {
             flex: 1; overflow: auto; border: 1px solid var(--border-soft);
             border-radius: var(--radius-md); background: white;
             overscroll-behavior: none; -webkit-overflow-scrolling: touch;
-            min-width: 0; min-height: 0; /* 防止超出畫面 */
+            min-width: 0; min-height: 0;
         }
         table { width: 100%; border-collapse: collapse; min-width: 600px; }
         th { background: #F2EFEA; position: sticky; top: 0; padding: 0 14px; border-bottom: 1px solid var(--border-soft); z-index: 5; font-weight: 600; color: var(--text-main); text-align: left; height: 50px; box-sizing: border-box; }
@@ -250,7 +250,7 @@
         .del-x { color: var(--danger-red); cursor: pointer; font-size: 1.2em; padding: 8px; border-radius: var(--radius-md); transition: 0.2s; display: inline-flex; }
         .del-x:hover { background: #FFF5F5; }
 
-        .admin-table-input { width: 100%; box-sizing: border-box; border: 1px solid #E2DED9; background: var(--bg-body); border-radius: 8px; padding: 10px; font-size: 1em; color: var(--text-main); transition: all 0.2s; text-align: center; font-weight: 500;}
+        .admin-table-input { width: 100%; box-sizing: border-box; border: 1px solid #E2DED9; background: var(--bg-body); border-radius: 8px; padding: 0 10px; height: 44px; font-size: 1em; color: var(--text-main); transition: all 0.2s; text-align: center; font-weight: 500;}
         .admin-table-input:focus { outline: none; border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(156, 131, 106, 0.1); }
         td input[type="text"].admin-table-input { text-align: left; }
 
@@ -258,7 +258,7 @@
         .drag-handle:active { cursor: grabbing; color: var(--primary); }
         tr.dragging { opacity: 0.5; background: #FDFCF9; }
 
-        /* 銷售排名專屬外層容器 (解決固定表頭與滑動限制) */
+        /* 銷售排名專屬外層容器 */
         .admin-ranking-box {
             background: #FDFCF9; padding: 20px; border-radius: 12px;
             border: 1px solid var(--border-soft); display: flex; flex-direction: column;
@@ -348,7 +348,8 @@
 
         .login-input {
             width: 100%;
-            padding: 16px;
+            height: 60px;
+            padding: 0 16px;
             font-size: 1.5em;
             border: 2px solid var(--border-soft);
             border-radius: 12px;
@@ -478,7 +479,7 @@
             .admin-actions { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 8px; -webkit-overflow-scrolling: touch; }
             .admin-actions button { white-space: nowrap; flex-shrink: 0; }
 
-            /* 解決 Issue 1: 底部按鈕重疊 */
+            /* 底部按鈕重疊 */
             .bottom-controls {
                 flex-direction: row;
                 padding: 12px;
@@ -503,19 +504,33 @@
 
             .login-card-ui { padding: 30px 20px; }
             .login-card-ui h2 { font-size: 1.5em; }
-            .login-input { font-size: 1.3em; padding: 14px; letter-spacing: 6px; }
+            .login-input { font-size: 1.3em; height: 54px; letter-spacing: 6px; }
             .login-card-ui .btn-submit { font-size: 1.1em; padding: 14px; }
             .notyf__toast { padding: 8px 16px !important; }
             .notyf__message { font-size: 0.95em !important; }
 
-            /* 解決 Issue 4: 新增套餐跑版 */
+            /* 新增套餐跑版 */
             .combo-config-area { flex: none; display: flex; flex-direction: column; overflow: visible; padding: 12px; }
             .combo-cols { flex-direction: column; overflow: visible; height: auto; margin-top: 12px; }
             .combo-group-list { width: 100%; height: auto; max-height: 200px; border-right: none; border-bottom: 1px solid var(--border-soft); padding-right: 0; padding-bottom: 12px; margin-bottom: 12px; }
             .combo-item-pool { width: 100%; height: auto; max-height: 300px; padding-left: 0; border-left: none; }
 
-            /* 解決 Issue - Table select placeholder in mobile */
-            .table-select { min-height: 54px; /* Ensure sufficient height on mobile */ }
+            /* 修正手機版桌號選擇與輸入框間距、縮小 Placeholder */
+            .table-select { font-size: 1.05em; height: 52px; margin-bottom: 16px; }
+            .big-input { font-size: 1.3em !important; height: 52px; margin-top: 8px; margin-bottom: 8px; }
+            .big-input::placeholder { font-size: 0.8em; }
+            .small-note { height: 48px; margin-top: 12px; margin-bottom: 12px; font-size: 0.95em; }
+            .small-note::placeholder { font-size: 0.9em; }
+
+            /* 結帳區內的區塊增加上下間距 */
+            #checkout-drawer .card > div[style*="margin-top:12px"] { margin-top: 20px !important; }
+            #cart-list { margin-bottom: 16px; margin-top: 16px; }
+        }
+
+        /* 修復日期選擇框內距導致手機版裁切或破版的問題 */
+        input[type="date"].form-control {
+            padding: 0 12px;
+            font-family: inherit;
         }
 
         /* 桌面端隱藏手機抽屜頭部 */
@@ -569,7 +584,7 @@
 
             <div id="cart-list"></div>
             <div style="margin-top:12px; flex-shrink: 0;">
-                <input type="number" id="discount" class="big-input" placeholder="折扣金額" oninput="calc()" style="font-size: 1.2em; text-align: left;">
+                <input type="number" id="discount" class="big-input" placeholder="折扣金額" oninput="calc()" style="text-align: left;">
                 <input type="text" id="discount-note" class="small-note" placeholder="折扣原因/備註 (例如: 滿額贈)">
                 <div style="margin-top:8px; display:flex; gap:8px;">
                     <button onclick="addExtraCost()" style="flex:1; padding:12px; background:#FFF5F5; border:1px solid #FED7D7; color:var(--danger-red); border-radius:10px; cursor:pointer; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px;"><i class="ph-bold ph-plus-circle"></i> 紀錄額外支出</button>
@@ -580,15 +595,15 @@
                 <button class="pay-btn active" id="btn-cash" onclick="setPay('現金')"><i class="ph-bold ph-money"></i> 現金</button>
                 <button class="pay-btn" id="btn-elec" onclick="setPay('電支')"><i class="ph-bold ph-device-mobile"></i> 電支</button>
             </div>
-            <input type="number" id="cash-in" class="big-input" placeholder="實收金額" oninput="calcChange()" style="flex-shrink: 0; font-size: 1.4em;">
+            <input type="number" id="cash-in" class="big-input" placeholder="實收金額" oninput="calcChange()" style="flex-shrink: 0;">
             <div style="text-align:right; margin-top:8px; font-size: 1.2em; flex-shrink: 0; font-weight: 600;">找零: <span id="cash-change" style="font-weight:800; color:var(--danger-red); font-size:1.6em;">0</span></div>
 
-            <div style="margin: 12px 0; padding: 12px; background: #FDFCF9; border-radius: 12px; border: 1px dashed var(--primary); flex-shrink: 0;">
-                <label style="font-size: 0.95em; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 500;">
-                    <input type="checkbox" id="backdate-mode" onclick="document.getElementById('manual-date').style.display = this.checked ? 'block' : 'none'" style="width:18px; height:18px; accent-color:var(--primary);">
+            <div style="margin: 12px 0; padding: 12px; background: #FDFCF9; border-radius: 12px; border: 1px dashed var(--primary); flex-shrink: 0; display: flex; flex-direction: column; gap: 8px;">
+                <label style="font-size: 0.95em; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 500; margin: 0;">
+                    <input type="checkbox" id="backdate-mode" onclick="document.getElementById('manual-date').style.display = this.checked ? 'block' : 'none'" style="width:18px; height:18px; accent-color:var(--primary); margin:0;">
                     <i class="ph-bold ph-calendar-blank"></i> 補登過去日期資料
                 </label>
-                <input type="date" id="manual-date" class="form-control" style="display:none; margin-top:8px;">
+                <input type="date" id="manual-date" class="form-control" style="display:none;">
             </div>
 
             <button onclick="submitOrder()" class="btn-submit">結帳 / 送單 <i class="ph-bold ph-paper-plane-right"></i></button>
@@ -640,11 +655,11 @@
         </div>
         <div style="background:#FDFCF9; padding:16px; border-radius:12px; margin-bottom:16px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; border:1px solid var(--border-soft); flex-shrink:0;">
             <div style="display:flex; align-items:center; gap:8px;">
-                <input type="date" id="search-date" class="form-control" style="min-height:44px; padding:8px 12px; width:auto;">
+                <input type="date" id="search-date" class="form-control" style="min-height:44px; padding:0 12px; width:auto; height: 44px;">
                 <button onclick="searchHistory('day')" class="dash-btn" style="min-height:44px;"><i class="ph-bold ph-magnifying-glass"></i> 查詢</button>
             </div>
             <div style="border-left: 2px solid var(--border-soft); padding-left: 16px; display:flex; align-items:center; gap:8px;">
-                <input type="month" id="search-month" class="form-control" style="min-height:44px; padding:8px 12px; width:auto;">
+                <input type="month" id="search-month" class="form-control" style="min-height:44px; padding:0 12px; width:auto; height: 44px;">
                 <button onclick="searchHistory('month')" class="dash-btn" style="background:var(--accent-green); min-height:44px;"><i class="ph-bold ph-chart-bar"></i> 統計</button>
             </div>
         </div>
@@ -1143,7 +1158,7 @@
     // --- Init Table Selector ---
     function initTableSelect() {
         const sel = document.getElementById('checkout-table');
-        sel.innerHTML = '<option value="">-- 選擇桌號 --</option>' +
+        sel.innerHTML = '<option value="" disabled selected hidden>-- 選擇桌號 --</option>' +
             ALL_TABLES.map(t => `<option value="${t}">${t}</option>`).join('');
     }
 
