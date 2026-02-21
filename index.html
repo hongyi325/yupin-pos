@@ -80,14 +80,14 @@
         .dash-btn {
             background: var(--primary); color: white; border: none; padding: 10px 20px;
             border-radius: var(--radius-pill); font-weight: 600; cursor: pointer; transition: all 0.2s;
-            min-height: 44px; display: flex; align-items: center; gap: 6px; box-shadow: var(--shadow-float);
+            min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: var(--shadow-float);
         }
         .dash-btn:active { transform: scale(0.96); opacity: 0.9; }
 
         .sync-btn {
             background: var(--text-muted); color: white; border: none; padding: 10px 20px;
             border-radius: var(--radius-pill); font-weight: 600; cursor: pointer; margin-left: auto;
-            display: flex; align-items: center; gap: 6px; transition: all 0.3s; min-height: 44px;
+            display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.3s; min-height: 44px;
         }
         .sync-btn:active { transform: scale(0.96); }
         .sync-btn.has-data { background: var(--danger-red); animation: pulse 2s infinite; }
@@ -123,10 +123,10 @@
             position: relative; transition: all 0.2s;
         }
         .p-btn:active { transform: scale(0.96); box-shadow: none; border-color: var(--primary); }
-        .p-btn.combo-item { border: 2px solid var(--primary); background: #FDFCF9; }
+        .p-btn.combo-item { border: 2px solid var(--primary); background: #FDFCF9; padding-top: 32px; /* 避免標籤遮擋文字 */ }
         .combo-badge {
-            position: absolute; top: 8px; right: 8px; background: var(--primary); color: white;
-            font-size: 0.7em; padding: 4px 8px; border-radius: var(--radius-pill); font-weight: 600;
+            position: absolute; top: 0px; right: 0px; background: var(--primary); color: white;
+            font-size: 0.75em; padding: 6px 10px; border-radius: 0 var(--radius-md) 0 var(--radius-md); font-weight: 600;
         }
         .p-name { font-size: 0.9em; font-weight: 600; margin-bottom: 8px; height: 2.6em; overflow: hidden; line-height: 1.3; color: var(--text-main); }
         .p-price { color: var(--primary); font-size: 1.15em; font-weight: 700; margin-bottom: 4px; }
@@ -150,7 +150,7 @@
 
         /* 輸入與控制元件 */
         .big-input, .table-select, .form-control {
-            font-size: 1.1em; padding: 14px 16px; width: 100%; border-radius: var(--radius-md);
+            font-size: 1.05em; padding: 14px 16px; width: 100%; border-radius: var(--radius-md);
             border: 1px solid #E2DED9; text-align: left; box-sizing: border-box;
             background: var(--bg-body); color: var(--text-main); font-weight: 500; transition: all 0.2s; min-height: 48px;
         }
@@ -214,17 +214,39 @@
 
         .modal-header-modern { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-soft); padding-bottom: 16px; flex-shrink: 0; }
         .modal-header-modern h2 { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.4em; color: var(--text-main); }
-        .close-icon-btn { background: transparent; border: none; font-size: 1.5em; color: var(--text-muted); cursor: pointer; padding: 8px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-full); transition: 0.2s; }
+        .close-icon-btn { background: transparent; border: none; font-size: 1.5em; color: var(--text-muted); cursor: pointer; padding: 8px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-full); transition: 0.2s; min-width: 44px; min-height: 44px;}
         .close-icon-btn:hover { background: var(--border-soft); color: var(--text-main); }
         .close-icon-btn:active { transform: scale(0.9); }
 
-        .admin-layout { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; flex: 1; overflow: hidden; }
+        /* 捲動容器：為確保 Modal 內容順暢捲動 */
+        .modal-body-scroll { flex: 1; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; overscroll-behavior: contain; }
+
+        /* 表單協調設定 */
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-weight: 600; font-size: 0.95em; color: var(--text-muted); margin-bottom: 8px; }
+
+        /* --- 管理中心 Grid 比例調整 (Issue 2) --- */
+        .admin-layout {
+            display: grid;
+            grid-template-columns: 2.5fr 1fr; /* 電腦版讓商品品項佔比放大至 71% */
+            gap: 20px; flex: 1; overflow: hidden; min-height: 0;
+        }
         .admin-actions { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 
-        .admin-table-container { overflow: auto; border: 1px solid var(--border-soft); border-radius: var(--radius-md); background: white; }
+        /* 管理中心表格設定 (Issue 1 & 2 & 4: 增加 min-width:0 防止 Grid 內爆版) */
+        .admin-table-container {
+            flex: 1; overflow: auto; border: 1px solid var(--border-soft);
+            border-radius: var(--radius-md); background: white;
+            overscroll-behavior: none; -webkit-overflow-scrolling: touch;
+            min-width: 0; min-height: 0; /* 防止超出畫面 */
+        }
         table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        th { background: #F2EFEA; position: sticky; top: 0; padding: 14px; border-bottom: 1px solid var(--border-soft); z-index: 5; font-weight: 600; color: var(--text-main); text-align: left; }
+        th { background: #F2EFEA; position: sticky; top: 0; padding: 0 14px; border-bottom: 1px solid var(--border-soft); z-index: 5; font-weight: 600; color: var(--text-main); text-align: left; height: 50px; box-sizing: border-box; }
         td { padding: 10px 14px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
+
+        /* 固定分類列 */
+        .cat-header-row td { position: sticky; top: 49px; z-index: 4; background: #FDFCF9; border-bottom: 2px solid var(--border-soft); box-shadow: 0 2px 6px rgba(0,0,0,0.03); box-sizing: border-box; }
+
         .del-x { color: var(--danger-red); cursor: pointer; font-size: 1.2em; padding: 8px; border-radius: var(--radius-md); transition: 0.2s; display: inline-flex; }
         .del-x:hover { background: #FFF5F5; }
 
@@ -236,11 +258,22 @@
         .drag-handle:active { cursor: grabbing; color: var(--primary); }
         tr.dragging { opacity: 0.5; background: #FDFCF9; }
 
+        /* 銷售排名專屬外層容器 (解決固定表頭與滑動限制) */
+        .admin-ranking-box {
+            background: #FDFCF9; padding: 20px; border-radius: 12px;
+            border: 1px solid var(--border-soft); display: flex; flex-direction: column;
+            flex-shrink: 0; min-width: 0; min-height: 0;
+        }
+        .admin-ranking-inner {
+            flex: 1; overflow: auto; -webkit-overflow-scrolling: touch;
+            overscroll-behavior: none; min-height: 0;
+        }
+
         /* Combo Settings */
-        .combo-config-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border-soft); background: white; border-radius: var(--radius-md); margin-top: 10px; padding: 16px; }
-        .combo-cols { display: flex; flex: 1; gap: 16px; overflow: hidden; margin-top: 12px; }
-        .combo-group-list { width: 35%; overflow-y: auto; padding-right: 8px; }
-        .combo-item-pool { flex: 1; overflow-y: auto; padding-left: 8px; border-left: 1px solid var(--border-soft); }
+        .combo-config-area { border: 1px solid var(--border-soft); background: white; border-radius: var(--radius-md); padding: 16px; display: flex; flex-direction: column; flex: none; }
+        .combo-cols { display: flex; gap: 16px; margin-top: 12px; }
+        .combo-group-list { width: 35%; overflow-y: auto; padding-right: 8px; max-height: 300px; }
+        .combo-item-pool { flex: 1; overflow-y: auto; padding-left: 8px; border-left: 1px solid var(--border-soft); max-height: 300px; }
         .group-card { padding: 12px 16px; border: 1px solid var(--border-soft); border-radius: var(--radius-md); margin-bottom: 10px; cursor: pointer; background: var(--bg-body); transition: 0.2s; }
         .group-card.active { border-color: var(--primary); background: #FDFCF9; box-shadow: 0 2px 8px rgba(156, 131, 106, 0.15); }
 
@@ -249,7 +282,7 @@
         .check-item:hover { border-color: var(--primary); }
         .check-item input { margin-right: 10px; width: 18px; height: 18px; accent-color: var(--primary); }
 
-        /* Combo Selection Modal UI (Modernized Touch Buttons) */
+        /* Combo Selection Modal UI */
         .combo-select-step { margin-bottom: 16px; border: 1px solid var(--border-soft); padding: 16px; border-radius: var(--radius-lg); background: var(--bg-body); }
         .combo-step-title { font-weight: 700; margin-bottom: 12px; color: var(--primary); font-size: 1.1em; display: flex; align-items: center; gap: 8px;}
         .combo-option {
@@ -267,8 +300,18 @@
         .combo-option.disabled { opacity: 0.5; background: var(--bg-body); cursor: not-allowed; pointer-events: none; }
 
         /* History Items */
-        .history-card { background: white; border: 1px solid var(--border-soft); padding: 16px 100px 16px 16px; border-radius: var(--radius-md); margin-bottom: 12px; position: relative; box-shadow: var(--shadow-sm); }
-        .history-del-btn { position: absolute; top: 16px; right: 16px; color: var(--danger-red); cursor: pointer; font-weight: 600; border: 1px solid #FED7D7; padding: 6px 12px; border-radius: 8px; font-size: 0.85em; background: #FFF5F5; display: flex; align-items: center; gap: 4px; transition: 0.2s;}
+        .history-card {
+            background: white; border: 1px solid var(--border-soft); padding: 16px;
+            border-radius: var(--radius-md); margin-bottom: 12px; box-shadow: var(--shadow-sm);
+            display: flex; flex-direction: column;
+        }
+        .history-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; gap: 12px;}
+        .history-del-btn {
+            color: var(--danger-red); cursor: pointer; font-weight: 600; border: 1px solid #FED7D7;
+            padding: 6px 12px; border-radius: 8px; font-size: 0.85em; background: #FFF5F5;
+            display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: 0.2s; flex-shrink: 0;
+            min-height: 36px;
+        }
         .history-del-btn:active { transform: scale(0.95); }
 
         .btn-setting {
@@ -277,13 +320,13 @@
         .btn-setting:active { transform: scale(0.96); background: var(--border-soft); }
 
         /* Bottom Controls (Desktop) */
-        .bottom-controls { padding: 16px; display: flex; justify-content: center; gap: 16px; flex-shrink: 0; background: var(--bg-body); border-top: 1px solid var(--border-soft); }
+        .bottom-controls { padding: 16px; display: flex; justify-content: center; gap: 16px; flex-shrink: 0; background: var(--bg-body); border-top: 1px solid var(--border-soft); z-index: 10;}
         .ctrl-btn { padding: 14px 24px; border-radius: var(--radius-pill); font-weight: 600; font-size: 1.1em; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; min-height: 48px; border: none;}
         .ctrl-btn.outline { background: white; color: var(--text-main); border: 1px solid var(--border-soft); box-shadow: var(--shadow-sm); }
         .ctrl-btn.primary { background: var(--primary); color: white; box-shadow: var(--shadow-float); }
         .ctrl-btn:active { transform: scale(0.96); }
 
-        /* SweetAlert2 & Notyf Fixes (Z-index 強化防擋) */
+        /* SweetAlert2 & Notyf Fixes */
         div.swal2-container { z-index: 100000 !important; font-family: var(--font-family); }
         .swal2-popup { border-radius: 24px !important; }
         html.swal2-height-auto, body.swal2-height-auto { height: 100vh !important; }
@@ -346,13 +389,12 @@
             gap: 8px;
             cursor: pointer;
             box-sizing: border-box;
+            min-height: 54px;
         }
         .login-card-ui .btn-submit:hover { background: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 6px 12px rgba(156, 131, 106, 0.3); }
         .login-card-ui .btn-submit:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(156, 131, 106, 0.2); }
 
-        /* ==========================================================
-           Notyf Toast 客製化 UI/UX 樣式
-           ========================================================== */
+        /* Notyf Toast 客製化 UI/UX 樣式 */
         .notyf { z-index: 100000 !important; top: 50% !important; bottom: auto !important; transform: translateY(-50%) !important; align-items: center !important; justify-content: center !important; pointer-events: none; font-family: var(--font-family); }
         .notyf__toast { border-radius: var(--radius-pill) !important; padding: 12px 24px !important; box-shadow: var(--shadow-float) !important; max-width: 90vw !important; min-height: auto !important; align-items: center !important; pointer-events: auto; }
         .notyf__wrapper { padding: 0 !important; display: flex !important; justify-content: center !important; align-items: center !important; }
@@ -362,7 +404,7 @@
         .td-item-row { padding: 14px 12px; border-bottom: 1px solid var(--border-soft); display: flex; justify-content: space-between; align-items: center; transition: 0.3s; background: white; border-radius: 8px; margin-bottom: 6px; }
         .td-item-row.is-served { opacity: 0.5; background: transparent; border-color: transparent; }
         .td-item-right { display: flex; align-items: center; gap: 16px; }
-        .serve-cb-wrapper { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 14px; background: var(--bg-body); border-radius: var(--radius-pill); border: 1px solid #E2DED9; user-select: none; transition: 0.2s; font-weight: 600; min-height: 40px;}
+        .serve-cb-wrapper { display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 8px 14px; background: var(--bg-body); border-radius: var(--radius-pill); border: 1px solid #E2DED9; user-select: none; transition: 0.2s; font-weight: 600; min-height: 44px; min-width: 80px;}
         .serve-cb { width: 20px; height: 20px; accent-color: var(--accent-green); cursor: pointer; margin: 0; }
         .serve-cb-wrapper.served { border-color: var(--accent-green); background: #F0FDF4; color: var(--accent-green); }
 
@@ -373,13 +415,14 @@
             border-radius: var(--radius-pill); box-shadow: 0 12px 28px rgba(156, 131, 106, 0.4);
             z-index: 4000; justify-content: space-between; align-items: center;
             font-weight: 700; font-size: 1.15em; cursor: pointer; transition: transform 0.2s;
+            margin-bottom: env(safe-area-inset-bottom, 0px);
         }
         .mobile-cart-summary:active { transform: scale(0.96); }
         .mobile-cart-summary .qty-badge { background: white; color: var(--primary); padding: 2px 8px; border-radius: 12px; font-size: 0.9em; margin-left: 8px; }
 
         /* --- 針對窄螢幕 (iPhone) 的 RWD 優化 --- */
         @media (max-width: 768px) {
-            .main-content { padding: 12px; padding-bottom: 100px; /* 留空間給懸浮列 */ flex-direction: column; overflow-y: auto;}
+            .main-content { padding: 12px; padding-bottom: 12px; flex-direction: column; overflow-y: auto;}
 
             /* 左側商品/桌況在手機上自然向下排 */
             .left-pane { flex: none; overflow: visible; background: transparent; border: none; }
@@ -396,7 +439,7 @@
                 backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
                 display: flex; flex-direction: column; justify-content: flex-end;
                 opacity: 0; pointer-events: none; transition: opacity 0.3s;
-                /* 隱藏原有樣式 */ max-width: none; min-width: 0; padding: 0; gap: 0;
+                max-width: none; min-width: 0; padding: 0; gap: 0;
             }
             .checkout-area.is-open { opacity: 1; pointer-events: auto; }
 
@@ -405,25 +448,44 @@
                 background: var(--bg-body); border-radius: 24px 24px 0 0; margin: 0;
                 border: none; padding: 20px; max-height: 85vh; overflow-y: auto;
                 transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+                padding-bottom: max(20px, env(safe-area-inset-bottom)); /* 安全區域留白 */
             }
             .checkout-area.is-open > .card { transform: translateY(0); }
 
             /* 在抽屜頂部加入關閉把手與按鈕 */
             .mobile-drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-            .mobile-drawer-handle { width: 40px; height: 4px; background: #D9D9D9; border-radius: 4px; margin: 0 auto 16px; }
+            .mobile-drawer-handle { width: 50px; height: 5px; background: #E2DED9; border-radius: 5px; margin: 0 auto 16px; }
 
             .mobile-cart-summary { display: flex; }
 
-            /* 隱藏桌面版的 今日紀錄，手機版在抽屜內可選示，或直接隱藏讓畫面單純 */
+            /* 隱藏桌面版的 今日紀錄 */
             #log-card-container { display: none; }
 
             /* 模態框手機版改為 Bottom Sheet */
             .modal-overlay { align-items: flex-end; padding: 0; }
-            .modal-content { border-radius: 24px 24px 0 0; margin: 0; max-height: 90vh; animation: slideUpMobile 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); padding: 20px;}
+            .modal-content {
+                border-radius: 24px 24px 0 0; margin: 0; max-height: 90vh;
+                animation: slideUpMobile 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); padding: 20px;
+                padding-bottom: max(20px, env(safe-area-inset-bottom)); /* 安全區域留白 */
+            }
             @keyframes slideUpMobile { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
-            .admin-layout { grid-template-columns: 1fr; }
-            .bottom-controls { flex-direction: column; padding: 12px; }
+            /* 管理中心 Grid 比例調整 (手機版 65% : 35%) */
+            .admin-layout { grid-template-columns: 1fr; grid-template-rows: 65% 35%; gap: 12px; min-height: 0; }
+            .admin-ranking-box { padding: 12px; }
+
+            /* 管理動作按鈕水平滑動防擠壓 */
+            .admin-actions { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 8px; -webkit-overflow-scrolling: touch; }
+            .admin-actions button { white-space: nowrap; flex-shrink: 0; }
+
+            /* 解決 Issue 1: 底部按鈕重疊 */
+            .bottom-controls {
+                flex-direction: row;
+                padding: 12px;
+                padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+                justify-content: space-between; gap: 10px;
+            }
+            .bottom-controls .ctrl-btn { flex: 1; padding: 12px; font-size: 1em; justify-content: center; }
 
             /* 表格與列表微調 */
             .td-item-row { flex-direction: column; align-items: flex-start; gap: 12px; }
@@ -436,13 +498,24 @@
             .t-items { font-size: 0.75em; margin-top: 6px; }
 
             /* History Item RWD adjustments */
-            .history-card { padding: 10px 80px 10px 10px; }
-            .history-del-btn { top: 10px; right: 10px; padding: 4px 6px; font-size: 0.75em; }
+            .history-card { padding: 12px; }
+            .history-del-btn { position: static; margin-left: auto; padding: 6px 10px; font-size: 0.85em; }
 
             .login-card-ui { padding: 30px 20px; }
             .login-card-ui h2 { font-size: 1.5em; }
             .login-input { font-size: 1.3em; padding: 14px; letter-spacing: 6px; }
             .login-card-ui .btn-submit { font-size: 1.1em; padding: 14px; }
+            .notyf__toast { padding: 8px 16px !important; }
+            .notyf__message { font-size: 0.95em !important; }
+
+            /* 解決 Issue 4: 新增套餐跑版 */
+            .combo-config-area { flex: none; display: flex; flex-direction: column; overflow: visible; padding: 12px; }
+            .combo-cols { flex-direction: column; overflow: visible; height: auto; margin-top: 12px; }
+            .combo-group-list { width: 100%; height: auto; max-height: 200px; border-right: none; border-bottom: 1px solid var(--border-soft); padding-right: 0; padding-bottom: 12px; margin-bottom: 12px; }
+            .combo-item-pool { width: 100%; height: auto; max-height: 300px; padding-left: 0; border-left: none; }
+
+            /* 解決 Issue - Table select placeholder in mobile */
+            .table-select { min-height: 54px; /* Ensure sufficient height on mobile */ }
         }
 
         /* 桌面端隱藏手機抽屜頭部 */
@@ -550,9 +623,11 @@
             <h2 id="td-modal-title"><i class="ph-fill ph-armchair"></i> 桌況明細</h2>
             <button class="close-icon-btn" onclick="closeModal('table-details-modal')"><i class="ph ph-x"></i></button>
         </div>
-        <div id="td-modal-info" style="background:#FDFCF9; padding:16px; border-radius:12px; font-weight:600; margin-bottom:12px; flex-shrink:0; border:1px solid var(--border-soft);"></div>
-        <div id="td-modal-items" style="flex:1; overflow-y:auto; border-radius:12px; background:var(--bg-body); padding: 8px;"></div>
-        <button id="td-modal-clear-btn" class="btn-submit" style="background:var(--danger-red); margin-top:16px;"><i class="ph-bold ph-broom"></i> 清除桌面 (客離)</button>
+        <div class="modal-body-scroll">
+            <div id="td-modal-info" style="background:#FDFCF9; padding:16px; border-radius:12px; font-weight:600; margin-bottom:12px; flex-shrink:0; border:1px solid var(--border-soft);"></div>
+            <div id="td-modal-items" style="flex:1; border-radius:12px; background:var(--bg-body); padding: 8px;"></div>
+        </div>
+        <button id="td-modal-clear-btn" class="btn-submit" style="background:var(--danger-red); margin-top:16px; flex-shrink:0;"><i class="ph-bold ph-broom"></i> 清除桌面 (客離)</button>
     </div>
 </div>
 
@@ -563,14 +638,14 @@
             <h2><i class="ph-bold ph-clock-counter-clockwise"></i> 歷史紀錄管理</h2>
             <button class="close-icon-btn" onclick="closeModal('history-panel')"><i class="ph ph-x"></i></button>
         </div>
-        <div style="background:#FDFCF9; padding:16px; border-radius:12px; margin-bottom:16px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; border:1px solid var(--border-soft);">
+        <div style="background:#FDFCF9; padding:16px; border-radius:12px; margin-bottom:16px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; border:1px solid var(--border-soft); flex-shrink:0;">
             <div style="display:flex; align-items:center; gap:8px;">
-                <input type="date" id="search-date" class="form-control" style="min-height:40px; padding:8px 12px; width:auto;">
-                <button onclick="searchHistory('day')" class="dash-btn" style="min-height:40px;"><i class="ph-bold ph-magnifying-glass"></i> 查詢</button>
+                <input type="date" id="search-date" class="form-control" style="min-height:44px; padding:8px 12px; width:auto;">
+                <button onclick="searchHistory('day')" class="dash-btn" style="min-height:44px;"><i class="ph-bold ph-magnifying-glass"></i> 查詢</button>
             </div>
             <div style="border-left: 2px solid var(--border-soft); padding-left: 16px; display:flex; align-items:center; gap:8px;">
-                <input type="month" id="search-month" class="form-control" style="min-height:40px; padding:8px 12px; width:auto;">
-                <button onclick="searchHistory('month')" class="dash-btn" style="background:var(--accent-green); min-height:40px;"><i class="ph-bold ph-chart-bar"></i> 統計</button>
+                <input type="month" id="search-month" class="form-control" style="min-height:44px; padding:8px 12px; width:auto;">
+                <button onclick="searchHistory('month')" class="dash-btn" style="background:var(--accent-green); min-height:44px;"><i class="ph-bold ph-chart-bar"></i> 統計</button>
             </div>
         </div>
         <div id="history-result-area" style="flex:1; overflow-y:auto; background:white; padding:16px; border-radius:12px; border:1px solid var(--border-soft);"></div>
@@ -601,16 +676,23 @@
         <div class="admin-layout">
             <div class="admin-table-container">
                 <table id="admin-main-table">
-                    <thead><tr><th style="width:40px;"></th><th>品名</th><th>成本</th><th>售價</th><th>庫存/內容</th><th>刪</th></tr></thead>
-                    <tbody id="admin-tbody"></tbody>
+                    <!-- 表格內容由 JS 動態生成 -->
                 </table>
             </div>
-            <div style="background:#FDFCF9; padding:20px; border-radius:12px; border:1px solid var(--border-soft); overflow-y:auto; max-height: 400px;">
-                <h3 style="margin-top:0; color:var(--text-main); display:flex; align-items:center; gap:8px;"><i class="ph-bold ph-chart-line-up"></i> 銷售排名</h3>
-                <table style="font-size:0.95em;">
-                    <thead><tr style="background:transparent;"><th style="border-bottom:2px solid #E2DED9;">品名</th><th style="border-bottom:2px solid #E2DED9;">量</th><th style="border-bottom:2px solid #E2DED9;">額</th></tr></thead>
-                    <tbody id="stat-tbody"></tbody>
-                </table>
+            <div class="admin-ranking-box">
+                <h3 style="margin-top:0; margin-bottom:12px; color:var(--text-main); display:flex; align-items:center; gap:8px; flex-shrink: 0; font-size:1.1em;"><i class="ph-bold ph-chart-line-up"></i> 銷售排名</h3>
+                <div class="admin-ranking-inner">
+                    <table style="font-size:0.95em; width:100%; border-collapse: collapse; white-space: nowrap;">
+                        <thead style="position: sticky; top: 0; background: #FDFCF9; z-index: 2;">
+                        <tr>
+                            <th style="border-bottom:2px solid #E2DED9; padding-bottom:8px; text-align: left;">品名</th>
+                            <th style="border-bottom:2px solid #E2DED9; padding-bottom:8px; padding-left:12px; text-align:center;">量</th>
+                            <th style="border-bottom:2px solid #E2DED9; padding-bottom:8px; padding-left:12px; text-align:center;">額</th>
+                        </tr>
+                        </thead>
+                        <tbody id="stat-tbody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -623,7 +705,7 @@
             <h2><i class="ph-bold ph-plus-circle"></i> 新增單品</h2>
             <button class="close-icon-btn" onclick="closeModal('modal-single-product')"><i class="ph ph-x"></i></button>
         </div>
-        <div style="flex:1; overflow-y:auto; padding-right: 4px;">
+        <div class="modal-body-scroll">
             <div class="form-group">
                 <label>商品分類</label>
                 <select id="single-cat" class="form-control" onchange="checkNewCat(this.value, 'single-cat')"></select>
@@ -651,7 +733,7 @@
                 <input type="number" id="single-stock" class="form-control" value="99">
             </div>
         </div>
-        <button onclick="saveSingleProduct()" class="btn-submit">確認新增</button>
+        <button onclick="saveSingleProduct()" class="btn-submit" style="flex-shrink:0;">確認新增</button>
     </div>
 </div>
 
@@ -662,49 +744,50 @@
             <h2><i class="ph-bold ph-squares-four"></i> 新增/編輯套餐</h2>
             <button class="close-icon-btn" onclick="closeModal('modal-combo-product')"><i class="ph ph-x"></i></button>
         </div>
-        <!-- Basic Info -->
-        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom: 12px;">
-            <div style="flex:1; min-width:150px;">
-                <label style="font-size:0.9em; font-weight:600; color:var(--text-muted); margin-bottom:4px; display:block;">分類</label>
-                <select id="combo-cat" class="form-control" onchange="checkNewCat(this.value, 'combo-cat')"></select>
-            </div>
-            <div style="flex:1; min-width:150px;">
-                <label style="font-size:0.9em; font-weight:600; color:var(--text-muted); margin-bottom:4px; display:block;">套餐名稱</label>
-                <input type="text" id="combo-name" class="form-control" placeholder="例: 下午茶組合">
-            </div>
-            <div style="width:120px;">
-                <label style="font-size:0.9em; font-weight:600; color:var(--text-muted); margin-bottom:4px; display:block;">售價</label>
-                <input type="number" id="combo-price" class="form-control" value="0">
-            </div>
-            <div style="width:100px;">
-                <label style="font-size:0.9em; font-weight:600; color:var(--text-muted); margin-bottom:4px; display:block;">代碼</label>
-                <input type="text" id="combo-id" class="form-control">
-            </div>
-        </div>
-
-        <!-- Combo Config -->
-        <div class="combo-config-area">
-            <div style="display:flex; gap:10px; margin-bottom:16px; align-items:center; background:#F0FDF4; padding:12px 16px; border-radius:12px; border: 1px solid #C6F6D5;">
-                <strong style="color:#22543D; display:flex; align-items:center; gap:6px;"><i class="ph-fill ph-check-circle"></i> 步驟：</strong>
-                <span style="color:#22543D; font-weight:500;">輸入群組名稱 (如: 飲品選一) </span>
-                <input type="text" id="combo-group-input" class="form-control" style="min-height:36px; padding:6px 12px; width:200px;" placeholder="群組名稱...">
-                <button onclick="addComboGroup()" class="dash-btn" style="background:var(--accent-green); min-height:36px; padding:6px 16px;"><i class="ph-bold ph-plus"></i> 加入群組</button>
-            </div>
-
-            <div class="combo-cols">
-                <!-- Left: Group List -->
-                <div class="combo-group-list" id="combo-group-list-ui">
-                    <div style="color:var(--text-muted); text-align:center; padding:30px; background:var(--bg-body); border-radius:12px;">請先新增群組</div>
+        <div class="modal-body-scroll">
+            <!-- Basic Info -->
+            <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom: 12px; flex-shrink: 0;">
+                <div class="form-group" style="flex:1; min-width:150px;">
+                    <label>分類</label>
+                    <select id="combo-cat" class="form-control" onchange="checkNewCat(this.value, 'combo-cat')"></select>
                 </div>
-
-                <!-- Right: Product Pool Checkboxes -->
-                <div class="combo-item-pool" id="combo-item-pool-ui">
-                    <div style="color:var(--text-muted); text-align:center; padding:30px; background:var(--bg-body); border-radius:12px;">點選左側群組後，在此勾選內容</div>
+                <div class="form-group" style="flex:1; min-width:150px;">
+                    <label>套餐名稱</label>
+                    <input type="text" id="combo-name" class="form-control" placeholder="例: 下午茶組合">
+                </div>
+                <div class="form-group" style="width:120px;">
+                    <label>售價</label>
+                    <input type="number" id="combo-price" class="form-control" value="0">
+                </div>
+                <div class="form-group" style="width:100px;">
+                    <label>代碼</label>
+                    <input type="text" id="combo-id" class="form-control">
                 </div>
             </div>
-        </div>
 
-        <button onclick="saveComboProduct()" class="btn-submit">完成並儲存套餐</button>
+            <!-- Combo Config -->
+            <div class="combo-config-area">
+                <div style="display:flex; gap:10px; margin-bottom:16px; align-items:center; background:#F0FDF4; padding:12px 16px; border-radius:12px; border: 1px solid #C6F6D5; flex-wrap: wrap;">
+                    <strong style="color:#22543D; display:flex; align-items:center; gap:6px; flex-shrink: 0;"><i class="ph-fill ph-check-circle"></i> 步驟：</strong>
+                    <span style="color:#22543D; font-weight:500; flex-shrink: 0;">輸入群組名稱 (如: 飲品選一) </span>
+                    <input type="text" id="combo-group-input" class="form-control" style="min-height:44px; padding:6px 12px; flex: 1; min-width: 140px; margin-bottom: 0;" placeholder="群組名稱...">
+                    <button onclick="addComboGroup()" class="dash-btn" style="background:var(--accent-green); min-height:44px; padding:6px 16px; flex-shrink: 0;"><i class="ph-bold ph-plus"></i> 加入群組</button>
+                </div>
+
+                <div class="combo-cols">
+                    <!-- Left: Group List -->
+                    <div class="combo-group-list" id="combo-group-list-ui">
+                        <div style="color:var(--text-muted); text-align:center; padding:30px; background:var(--bg-body); border-radius:12px;">請先新增群組</div>
+                    </div>
+
+                    <!-- Right: Product Pool Checkboxes -->
+                    <div class="combo-item-pool" id="combo-item-pool-ui">
+                        <div style="color:var(--text-muted); text-align:center; padding:30px; background:var(--bg-body); border-radius:12px;">點選左側群組後，在此勾選內容</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button onclick="saveComboProduct()" class="btn-submit" style="flex-shrink:0;">完成並儲存套餐</button>
     </div>
 </div>
 
@@ -715,8 +798,8 @@
             <h2 id="select-combo-title">選擇套餐內容</h2>
             <button class="close-icon-btn" onclick="closeModal('combo-select-modal')"><i class="ph ph-x"></i></button>
         </div>
-        <div id="combo-selection-area" style="flex:1; overflow-y:auto; padding-right: 4px;"></div>
-        <button onclick="confirmComboSelection()" class="btn-submit"><i class="ph-bold ph-check"></i> 確認加入清單</button>
+        <div id="combo-selection-area" class="modal-body-scroll"></div>
+        <button onclick="confirmComboSelection()" class="btn-submit" style="flex-shrink:0;"><i class="ph-bold ph-check"></i> 確認加入清單</button>
     </div>
 </div>
 
@@ -1429,10 +1512,11 @@
     }
 
     function renderAdminTable() {
-        let html = '';
+        let html = `<thead><tr><th style="width:40px;"></th><th>品名</th><th>成本</th><th>售價</th><th>庫存/內容</th><th>刪</th></tr></thead>`;
         inv.forEach((cat, ci) => {
-            html += `<tr id="ac${ci}" style="background:#FDFCF9;">
-                <td colspan="6" style="text-align:left; padding:14px; border-bottom: 2px solid var(--border-soft);">
+            html += `<tbody>`;
+            html += `<tr id="ac${ci}" class="cat-header-row">
+                <td colspan="6" style="text-align:left; padding:14px;">
                     <b style="font-size:1.1em; color:var(--primary); display:inline-flex; align-items:center; gap:6px;"><i class="ph-fill ph-folder-open"></i> ${cat.cat}</b>
                     <button class="btn-setting" style="margin-left:12px; padding:6px 10px;" onclick="editCategoryName(${ci})"><i class="ph-bold ph-pencil-simple"></i></button>
                     <button class="btn-setting" style="color:var(--danger-red); padding:6px 10px;" onclick="deleteCategory(${ci})"><i class="ph-bold ph-trash"></i></button>
@@ -1453,11 +1537,12 @@
                     <td><span onclick="delP(${ci},${ii})" class="del-x"><i class="ph-bold ph-trash"></i></span></td>
                 </tr>`;
             });
+            html += `</tbody>`;
         });
-        const tbody = document.getElementById('admin-tbody');
-        tbody.innerHTML = html;
+        const table = document.getElementById('admin-main-table');
+        table.innerHTML = html;
 
-        const rows = tbody.querySelectorAll('.draggable-row');
+        const rows = table.querySelectorAll('.draggable-row');
         rows.forEach(row => {
             row.addEventListener('dragstart', handleDragStart);
             row.addEventListener('dragover', handleDragOver);
@@ -1465,7 +1550,7 @@
             row.addEventListener('dragend', handleDragEnd);
         });
 
-        const handles = tbody.querySelectorAll('.drag-handle');
+        const handles = table.querySelectorAll('.drag-handle');
         handles.forEach(handle => {
             handle.addEventListener('touchstart', handleTouchStart, {passive: false});
             handle.addEventListener('touchmove', handleTouchMove, {passive: false});
@@ -2026,8 +2111,14 @@
                 totalRev += o.total;
                 totalProf += (o.profit || 0);
                 html += `<div class="history-card">
-                    <div class="history-del-btn" onclick="deleteOrder('${o.firebaseKey}')"><i class="ph-bold ph-trash"></i> 退貨/刪除</div>
-                    <strong style="font-size:1.1em; color:var(--text-main);">【${o.pay}】總計: <span style="color:var(--primary);">$${o.total}</span></strong> ${o.table ? `<span style="color:var(--accent-green); font-weight:bold; margin-left:8px;">桌號 ${o.table}</span>` : ''} <span style="color:var(--text-muted); font-size:0.85em; margin-left:8px;"><i class="ph-bold ph-clock"></i> ${o.d} ${o.t}</span><br>
+                    <div class="history-header">
+                        <div>
+                            <strong style="font-size:1.1em; color:var(--text-main);">【${o.pay}】總計: <span style="color:var(--primary);">$${o.total}</span></strong>
+                            ${o.table ? `<span style="color:var(--accent-green); font-weight:bold; margin-left:8px;">桌號 ${o.table}</span>` : ''}
+                        </div>
+                        <div class="history-del-btn" onclick="deleteOrder('${o.firebaseKey}')"><i class="ph-bold ph-trash"></i> 退貨/刪除</div>
+                    </div>
+                    <span style="color:var(--text-muted); font-size:0.85em;"><i class="ph-bold ph-clock"></i> ${o.d} ${o.t}</span>
                     <div style="font-size:0.95em; color:var(--text-muted); margin-top:8px; line-height:1.4;"><i class="ph-bold ph-shopping-bag"></i> 內容: ${o.items.map(i=>`${i.n}${i.comboDetail?`[${i.comboDetail}]`:''}`).join(', ')}</div>
                 </div>`;
             });
@@ -2092,7 +2183,7 @@
         const stats = {};
         orders.forEach(o => { o.items.forEach(it => { if(it.id === "支出") return; if(!stats[it.n]) stats[it.n] = { qty: 0, amt: 0 }; stats[it.n].qty += 1; stats[it.n].amt += it.p; }); });
         const sorted = Object.entries(stats).sort((a,b) => b[1].qty - a[1].qty);
-        document.getElementById('stat-tbody').innerHTML = sorted.map(([name, data]) => `<tr style="background:white;"><td style="text-align:left; font-weight:600; color:var(--text-main);">${name}</td><td><span style="background:var(--bg-body); padding:4px 8px; border-radius:6px; font-weight:600;">${data.qty}</span></td><td style="color:var(--primary); font-weight:700;">$${data.amt}</td></tr>`).join('');
+        document.getElementById('stat-tbody').innerHTML = sorted.map(([name, data]) => `<tr style="background:white;"><td style="text-align:left; font-weight:600; color:var(--text-main); padding: 8px;">${name}</td><td style="padding: 8px; text-align:center;"><span style="background:var(--bg-body); padding:4px 8px; border-radius:6px; font-weight:600;">${data.qty}</span></td><td style="color:var(--primary); font-weight:700; padding: 8px; text-align:center;">$${data.amt}</td></tr>`).join('');
     }
 
     function backupData() {
