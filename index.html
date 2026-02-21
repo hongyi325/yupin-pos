@@ -3,164 +3,496 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🧸 LITTLE NOOK POS (Pro 修正版)</title>
+    <title>🍵 御品泡茶體驗</title>
+
+    <!-- 引入 Firebase v8 (已移除 auth，退回簡易前端防護) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <!-- 引入 XLSX 用於匯出 Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    
+
+    <!-- 引入 SweetAlert2 (處理對話、確認、輸入) -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- 引入 Notyf (處理輕量化 Toast 提示) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+
     <style>
         :root { --main-brown: #b0a496; --bg-cream: #fcf8f5; --accent-brown: #8c7b6c; --price-red: #d9534f; --profit-green: #6b8e23; }
         body { font-family: sans-serif; background: var(--bg-cream); margin: 0; display: flex; flex-direction: column; height: 100vh; color: #5d5246; overflow: hidden; }
-        header { background: var(--main-brown); color: white; padding: 12px; text-align: center; font-size: 1.3em; font-weight: bold; flex-shrink: 0; }
-        .nav-bar { background: #e8e0d9; padding: 10px; display: flex; gap: 10px; overflow-x: auto; border-bottom: 2px solid #d1c7bc; flex-shrink: 0; align-items: center; }
-        .nav-btn { background: white; border: 1px solid #d1c7bc; padding: 8px 18px; border-radius: 20px; white-space: nowrap; cursor: pointer; font-size: 1.1em; }
-        .sync-btn { background: #ff9800; color: white; border: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; margin-left: auto; }
+        header { background: var(--main-brown); color: white; padding: 12px; text-align: center; font-size: 1.3em; font-weight: bold; flex-shrink: 0; cursor: default; user-select: none; }
+
+        /* Nav Bar */
+        .nav-bar { background: #e8e0d9; padding: 10px; display: flex; gap: 10px; overflow-x: auto; border-bottom: 2px solid #d1c7bc; flex-shrink: 0; align-items: center; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+        .nav-btn { background: white; border: 1px solid #d1c7bc; padding: 8px 18px; border-radius: 20px; white-space: nowrap; cursor: pointer; font-size: 1.1em; flex-shrink: 0; }
+
+        /* Dashboard Buttons */
+        .dash-btn { background: var(--accent-brown); color: white; border: none; padding: 8px 18px; border-radius: 20px; font-weight: bold; cursor: pointer; flex-shrink: 0; transition: transform 0.1s; }
+        .dash-btn:active { transform: scale(0.95); }
+
+        /* Improved Sync Button */
+        .sync-btn {
+            background: #718096; color: white; border: none; padding: 8px 18px; border-radius: 20px; font-weight: bold; cursor: pointer; margin-left: auto; flex-shrink: 0;
+            display: flex; align-items: center; gap: 5px; transition: all 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .sync-btn.has-data {
+            background: #e53e3e;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(229, 62, 62, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(229, 62, 62, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(229, 62, 62, 0); }
+        }
+
+        /* Main Layout */
         .main-content { display: flex; flex: 1; overflow: hidden; padding: 10px; gap: 10px; }
-        .item-area { flex: 1.8; overflow-y: auto; background: white; border-radius: 15px; padding: 15px; border: 2px solid #e8e0d9; }
-        .cat-title { background: #fdf5f0; padding: 8px 15px; border-radius: 20px; margin: 15px 0 8px; font-weight: bold; border-left: 8px solid var(--main-brown); font-size: 1.2em; }
+
+        /* Left Area (Products & Tables) */
+        .left-pane { flex: 1.8; display: flex; flex-direction: column; overflow: hidden; background: white; border-radius: 15px; border: 2px solid #e8e0d9; position: relative; }
+        .item-area { flex: 1; overflow-y: auto; padding: 15px; }
+        .table-area { flex: 1; overflow-y: auto; padding: 15px; display: none; background: #fdfaf7; }
+
+        .cat-title { background: #fdf5f0; padding: 8px 15px; border-radius: 20px; margin: 15px 0 8px; font-weight: bold; border-left: 8px solid var(--main-brown); font-size: 1.2em; clear: both; }
+
+        /* Product Grid */
         .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 10px; }
-        .p-btn { background: white; border: 1px solid #f0e6dd; border-radius: 12px; padding: 10px 5px; text-align: center; cursor: pointer; box-shadow: 2px 2px 0 #e8e0d9; min-height: 90px; display: flex; flex-direction: column; justify-content: center; }
+        .p-btn { background: white; border: 1px solid #f0e6dd; border-radius: 12px; padding: 10px 5px; text-align: center; cursor: pointer; box-shadow: 2px 2px 0 #e8e0d9; min-height: 90px; display: flex; flex-direction: column; justify-content: center; position: relative; }
+        .p-btn.combo-item { border: 2px solid var(--accent-brown); background: #fffcf8; }
+        .combo-badge { position: absolute; top: -5px; right: -5px; background: var(--accent-brown); color: white; font-size: 0.7em; padding: 2px 6px; border-radius: 10px; }
         .p-name { font-size: 0.85em; font-weight: bold; margin-bottom: 5px; height: 2.8em; overflow: hidden; line-height: 1.4; }
         .p-price { color: #c2966d; font-size: 1.2em; font-weight: bold; }
         .p-stock { font-size: 0.8em; color: #999; }
+
+        /* Checkout Area */
         .checkout-area { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 320px; overflow-y: auto; }
-        .card { background: white; border-radius: 15px; padding: 12px; border: 2px solid #e8e0d9; }
-        #cart-list { max-height: 200px; overflow-y: auto; border-bottom: 2px dashed #e8e0d9; }
-        .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 5px; font-size: 1.1em; border-bottom: 1px solid #eee; }
+        .card { background: white; border-radius: 15px; padding: 12px; border: 2px solid #e8e0d9; display: flex; flex-direction: column; }
+        #cart-list { flex: 1; min-height: 150px; max-height: 300px; overflow-y: auto; border-bottom: 2px dashed #e8e0d9; }
+        .cart-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 12px 5px; font-size: 1.1em; border-bottom: 1px solid #eee; }
+        .cart-details { font-size: 0.8em; color: #666; margin-left: 10px; display: block; }
+
         .big-input { font-size: 1.8em; padding: 12px; width: 100%; border-radius: 10px; border: 2px solid #d1c7bc; text-align: right; box-sizing: border-box; background: #fffcf5; font-weight: bold; }
+        .table-select { font-size: 1.4em; padding: 10px; width: 100%; border-radius: 10px; border: 2px solid var(--main-brown); background: #fdf5f0; font-weight: bold; color: var(--accent-brown); margin-bottom: 10px; text-align: center; }
         .small-note { font-size: 1em; padding: 8px; width: 100%; border-radius: 8px; border: 1px solid #d1c7bc; box-sizing: border-box; margin-top: 5px; }
         .total-display { font-size: 3.2em; font-weight: bold; color: var(--price-red); text-align: right; margin: 10px 0; }
         .pay-btn { flex: 1; padding: 15px; border-radius: 10px; border: 1px solid #ccc; background: white; cursor: pointer; font-weight: bold; font-size: 1.3em;}
         .pay-btn.active { background: var(--accent-brown); color: white; border-color: var(--accent-brown); }
-        #admin-panel, #history-panel { position: fixed; inset: 10px; background: white; z-index: 1000; border-radius: 20px; display: none; flex-direction: column; padding: 15px; border: 3px solid var(--main-brown); box-shadow: 0 0 50px rgba(0,0,0,0.3); }
+
+        /* Table Dashboard Styles */
+        .table-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; margin-top: 15px; }
+        .t-card { border-radius: 15px; padding: 15px 10px; text-align: center; border: 2px solid #e8e0d9; cursor: pointer; display: flex; flex-direction: column; justify-content: center; min-height: 110px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); transition: transform 0.1s; }
+        .t-card:active { transform: scale(0.95); }
+        .t-empty { background: #fff; color: #a0a0a0; border: 2px dashed #d1c7bc; }
+        .t-green { background: #e6fffa; border-color: #38a169; color: #234e52; }
+        .t-yellow { background: #fffff0; border-color: #d69e2e; color: #744210; }
+        .t-red { background: #fff5f5; border-color: #e53e3e; color: #742a2a; }
+        .t-red-blink { background: #fff5f5; border-color: #e53e3e; color: #742a2a; animation: redBlink 1.5s infinite; }
+        @keyframes redBlink { 0%, 100% { background: #fff5f5; box-shadow: 0 0 0 #e53e3e; } 50% { background: #fed7d7; box-shadow: 0 0 15px rgba(229, 62, 62, 0.6); } }
+        .t-name { font-size: 1.4em; font-weight: bold; margin-bottom: 8px; }
+        .t-time { font-size: 0.9em; font-weight: bold; background: rgba(255,255,255,0.5); padding: 2px 5px; border-radius: 5px; display: inline-block; margin: 0 auto; }
+        .t-items { font-size: 0.8em; margin-top: 8px; opacity: 0.85; }
+
+        /* Panels / Modals */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; display: none; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
+        .modal-content { background: white; width: 95%; max-width: 900px; height: 90%; max-height: 800px; border-radius: 15px; display: flex; flex-direction: column; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; animation: slideUp 0.3s ease; box-sizing: border-box; }
+        .modal-small { max-width: 500px; height: auto; max-height: 90vh; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
         .admin-layout { display: grid; grid-template-columns: 1.5fr 1fr; gap: 15px; flex: 1; overflow: hidden; }
-        .add-row-top { background: #f0fdf4; padding: 15px; border: 2px solid var(--profit-green); border-radius: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+        .admin-actions { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+
         .admin-table-container { overflow: auto; border: 1px solid #eee; border-radius: 8px; }
-        table { width: 100%; border-collapse: collapse; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
         th { background: #f4f4f4; position: sticky; top: 0; padding: 10px; border: 1px solid #ddd; z-index: 5; }
         td { padding: 8px; border: 1px solid #ddd; text-align: center; }
         .del-x { color: red; font-weight: bold; cursor: pointer; font-size: 1.4em; }
-        .order-tag { background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-right: 4px; color: #666; display: inline-block; margin-top: 4px; border: 1px solid #ddd; }
-        .admin-input-large { font-size: 1.2em !important; padding: 8px !important; width: 100%; box-sizing: border-box; }
+
+        /* Beautified Admin Inputs */
+        .admin-table-input { width: 100%; box-sizing: border-box; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 6px; padding: 8px 10px; font-size: 1em; color: #4a5568; transition: all 0.2s; text-align: center; }
+        .admin-table-input:focus { outline: none; border-color: var(--accent-brown); background: #fff; box-shadow: 0 0 0 3px rgba(140, 123, 108, 0.1); }
+        td input[type="text"].admin-table-input { text-align: left; }
+
+        /* Drag and Drop Styles */
+        .drag-handle { cursor: grab; color: #a0aec0; font-size: 1.2em; user-select: none; touch-action: none; padding: 5px; }
+        .drag-handle:active { cursor: grabbing; color: var(--accent-brown); }
+        tr.dragging { opacity: 0.4; background: #fff7ed; }
+
+        /* Form Styles */
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; }
+        .form-control { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 1em; box-sizing: border-box; }
+        .btn-submit { width: 100%; padding: 12px; background: var(--profit-green); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 1.1em; margin-top: 10px; cursor: pointer; }
+
+        /* Combo Config Styles */
+        .combo-config-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; border: 2px dashed #ddd; border-radius: 8px; margin-top: 10px; padding: 10px; }
+        .combo-cols { display: flex; flex: 1; gap: 10px; overflow: hidden; }
+        .combo-group-list { width: 35%; overflow-y: auto; border-right: 1px solid #eee; padding-right: 5px; }
+        .combo-item-pool { flex: 1; overflow-y: auto; padding-left: 5px; }
+        .group-card { padding: 10px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 8px; cursor: pointer; background: #fff; transition: 0.2s; }
+        .group-card.active { border-color: var(--accent-brown); background: #fdf5f0; border-left: 5px solid var(--accent-brown); }
+
+        /* Checkbox list styles */
+        .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+        .check-item { display: flex; align-items: center; padding: 8px; border: 1px solid #eee; border-radius: 6px; cursor: pointer; font-size: 0.9em; }
+        .check-item:hover { background: #f9f9f9; }
+        .check-item input { margin-right: 8px; transform: scale(1.2); }
+
+        /* History Items */
         .history-card { background: #fdfdfd; border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-bottom: 10px; position: relative; }
         .history-del-btn { position: absolute; top: 10px; right: 10px; color: red; cursor: pointer; font-weight: bold; border: 1px solid red; padding: 2px 5px; border-radius: 4px; font-size: 0.8em; }
-        .clear-log-btn { background: none; border: 1px solid #b0a496; color: #b0a496; font-size: 0.75em; padding: 2px 8px; border-radius: 5px; cursor: pointer; }
-        .del-cat-btn { background: #ff4d4d; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 0.8em; margin-left: 10px; }
-        .edit-cat-btn { background: #3182ce; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 0.8em; margin-left: 10px; }
+
+        /* Combo Customer Modal Styles */
+        .combo-select-step { margin-bottom: 15px; border: 1px solid #eee; padding: 10px; border-radius: 8px; }
+        .combo-step-title { font-weight: bold; margin-bottom: 8px; background: #f9f9f9; padding: 5px; border-radius: 4px; }
+        .combo-option { display: inline-block; margin: 5px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 20px; cursor: pointer; background: white; }
+        .combo-option.selected { background: var(--accent-brown); color: white; border-color: var(--accent-brown); }
+        .combo-option.disabled { opacity: 0.5; background: #eee; cursor: not-allowed; }
+
+        /* Beautified Setting Button */
+        .btn-setting {
+            background: var(--accent-brown); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.9em; font-weight: bold; transition: all 0.2s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.1); white-space: nowrap;
+        }
+        .btn-setting:hover { background: #7a6a5d; transform: translateY(-1px); box-shadow: 0 4px 6px rgba(0,0,0,0.15); }
+        .btn-setting:active { transform: translateY(0); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+
+        /* 修正 SweetAlert2 修改 body 高度導致 Flexbox 跑版的問題 */
+        .swal2-container { z-index: 20000 !important; }
+        html.swal2-height-auto, body.swal2-height-auto { height: 100vh !important; }
+        body.swal2-shown { padding-right: 0 !important; overflow: hidden !important; }
+
+        /* Refined Login Overlay Styles */
+        #login-overlay {
+            position: fixed; inset: 0;
+            background: linear-gradient(135deg, #d3cbb8 0%, #b0a496 100%);
+            z-index: 10000;
+            display: flex; justify-content: center; align-items: center;
+            backdrop-filter: blur(5px);
+        }
+        .login-card-ui {
+            background: rgba(255, 255, 255, 0.95); padding: 40px 30px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.5) inset; text-align: center; width: 90%; max-width: 400px; box-sizing: border-box; animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .login-card-ui h2 { margin-top: 0; color: #4a4036; margin-bottom: 30px; font-size: 1.8em; font-weight: 800; letter-spacing: 1px; }
+        .login-input-wrapper { position: relative; margin-bottom: 20px; }
+        .login-card-ui .big-input { width: 100%; padding: 15px; font-size: 1.2em; border: 2px solid #e0d8d0; border-radius: 12px; background: #fff; color: #5d5246; transition: all 0.3s ease; text-align: center; letter-spacing: 2px; }
+        .login-card-ui .big-input:focus { border-color: var(--accent-brown); box-shadow: 0 0 0 4px rgba(140, 123, 108, 0.1); outline: none; }
+        .login-card-ui .big-input::placeholder { text-align: center; color: #bcaaa4; letter-spacing: normal; }
+        .login-card-ui .btn-submit { background: var(--accent-brown); padding: 15px; font-size: 1.2em; border-radius: 12px; transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(140, 123, 108, 0.2); }
+        .login-card-ui .btn-submit:hover { background: #7a6a5d; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(140, 123, 108, 0.3); }
+        .login-card-ui .btn-submit:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(140, 123, 108, 0.2); }
+
+        /* ==========================================================
+           Notyf Toast 客製化 UI/UX 樣式 (柔和、流暢、緊湊膠囊狀、畫面正中央)
+           ========================================================== */
+        .notyf { z-index: 99999 !important; top: 50% !important; bottom: auto !important; transform: translateY(-50%) !important; align-items: center !important; justify-content: center !important; pointer-events: none; }
+        .notyf__toast { border-radius: 50px !important; padding: 8px 24px !important; box-shadow: 0 6px 18px rgba(0,0,0,0.12) !important; max-width: 90vw !important; min-height: auto !important; align-items: center !important; pointer-events: auto; }
+        .notyf__wrapper { padding: 0 !important; display: flex !important; justify-content: center !important; align-items: center !important; }
+        .notyf__message { font-size: 1.05em !important; font-weight: 600 !important; letter-spacing: 0.5px; padding: 0 !important; text-align: center !important; line-height: 1.4 !important; color: #ffffff !important; }
+        @keyframes notyf-fadeinup-spring { 0% { opacity: 0; transform: translateY(-20px) scale(0.9); } 60% { opacity: 1; transform: translateY(3px) scale(1.02); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
+        .notyf__toast--in { animation: notyf-fadeinup-spring 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important; }
+
+        /* RWD Media Queries */
+        @media (max-width: 768px) {
+            .main-content { flex-direction: column; }
+            .left-pane { flex: 1; max-height: 40vh; }
+            .checkout-area { flex: 1; min-width: 100%; max-height: 50vh; }
+            .admin-layout { grid-template-columns: 1fr; }
+            .product-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+            .table-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+            .big-input { font-size: 1.4em; padding: 8px; }
+            .table-select { font-size: 1.2em; padding: 8px; }
+            .total-display { font-size: 2.2em; margin: 5px 0; }
+            .modal-content { width: 100%; height: 100%; max-height: 100%; border-radius: 0; padding: 15px; }
+            .combo-cols { flex-direction: column; }
+            .combo-group-list { width: 100%; height: 150px; border-right: none; border-bottom: 1px solid #eee; }
+            .combo-item-pool { height: 100%; }
+            .checkbox-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+            .modal-small { height: auto; max-height: 90vh; border-radius: 15px; width: 90%; }
+            .admin-table-input { min-width: 60px; font-size: 0.9em; padding: 6px; }
+            td input[type="text"].admin-table-input { min-width: 120px; }
+            .login-card-ui { padding: 30px 20px; }
+            .login-card-ui h2 { font-size: 1.5em; }
+            .login-card-ui .big-input { font-size: 1.1em; padding: 12px; }
+            .login-card-ui .btn-submit { font-size: 1.1em; padding: 12px; }
+            .notyf__toast { padding: 8px 16px !important; }
+            .notyf__message { font-size: 0.95em !important; }
+        }
     </style>
 </head>
 <body>
 
-<header>🧸 LITTLE NOOK POS (Pro 修正版)</header>
+<!-- 登入覆蓋層 -->
+<div id="login-overlay">
+    <div class="login-card-ui">
+        <h2>🍵 御品泡茶體驗</h2>
+        <div class="login-input-wrapper">
+            <input type="password" id="login-pwd-input" class="big-input" placeholder="請輸入密碼" onkeypress="if(event.key==='Enter') checkSystemLogin()">
+        </div>
+        <button onclick="checkSystemLogin()" class="btn-submit">進入系統</button>
+    </div>
+</div>
+
+<header onclick="handleHeaderSecretClick()">🍵 御品泡茶體驗</header>
 <div class="nav-bar">
+    <!-- 新增門市桌況按鈕 -->
+    <button class="dash-btn" onclick="toggleView('tables')">🪑 門市桌況</button>
     <div id="navbar" style="display:flex; gap:10px;"></div>
-    <button class="sync-btn" onclick="syncOfflineData()">🔄 離線數據同步</button>
+    <button id="sync-btn" class="sync-btn" onclick="syncOfflineData()">☁️ 雲端同步</button>
 </div>
 
 <div class="main-content">
-    <div class="item-area" id="item-area">同步中...</div>
+    <!-- 左側顯示區：可切換商品或桌況 -->
+    <div class="left-pane">
+        <div class="item-area" id="item-area">同步中...</div>
+        <div class="table-area" id="table-area"></div>
+    </div>
+
     <div class="checkout-area">
-        <div class="card">
+        <div class="card" style="flex:1;">
             <strong>🛒 當前清單</strong>
+            <!-- 新增強制桌號選擇 -->
+            <select id="checkout-table" class="table-select">
+                <!-- 透過 JS 初始化選項 -->
+            </select>
+
             <div id="cart-list"></div>
-            <div style="margin-top:10px;">
+            <div style="margin-top:10px; flex-shrink: 0;">
                 <input type="number" id="discount" class="big-input" placeholder="折扣金額" oninput="calc()">
                 <input type="text" id="discount-note" class="small-note" placeholder="折扣原因/備註 (例如: 滿額贈)">
                 <div style="margin-top:5px; display:flex; gap:5px;">
                     <button onclick="addExtraCost()" style="flex:1; padding:8px; background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; border-radius:8px; cursor:pointer; font-size:0.9em; font-weight:bold;">➕ 紀錄額外支出</button>
                 </div>
             </div>
-            <div class="total-display">$<span id="final-total">0</span></div>
-            <div style="display:flex; gap:8px; margin-bottom:10px;">
+            <div class="total-display" style="flex-shrink: 0;">$<span id="final-total">0</span></div>
+            <div style="display:flex; gap:8px; margin-bottom:10px; flex-shrink: 0;">
                 <button class="pay-btn active" id="btn-cash" onclick="setPay('現金')">💵 現金</button>
                 <button class="pay-btn" id="btn-elec" onclick="setPay('電支')">📱 電支</button>
             </div>
-            <input type="number" id="cash-in" class="big-input" placeholder="實收金額" oninput="calcChange()"> 
-            <div style="text-align:right; margin-top:5px; font-size: 1.3em;">找零: <span id="cash-change" style="font-weight:bold; color:red; font-size:1.8em;">0</span></div>
-            
-            <div style="margin: 10px 0; padding: 10px; background: #fff5eb; border-radius: 10px; border: 1px dashed var(--main-brown);">
+            <input type="number" id="cash-in" class="big-input" placeholder="實收金額" oninput="calcChange()" style="flex-shrink: 0;">
+            <div style="text-align:right; margin-top:5px; font-size: 1.3em; flex-shrink: 0;">找零: <span id="cash-change" style="font-weight:bold; color:red; font-size:1.8em;">0</span></div>
+
+            <div style="margin: 10px 0; padding: 10px; background: #fff5eb; border-radius: 10px; border: 1px dashed var(--main-brown); flex-shrink: 0;">
                 <label style="font-size: 0.9em; cursor: pointer;">
-                    <input type="checkbox" id="backdate-mode" onclick="document.getElementById('manual-date').style.display = this.checked ? 'inline-block' : 'none'"> 
+                    <input type="checkbox" id="backdate-mode" onclick="document.getElementById('manual-date').style.display = this.checked ? 'inline-block' : 'none'">
                     📅 補登過去日期資料
                 </label>
                 <input type="date" id="manual-date" style="display:none; margin-left:10px; padding:5px; border:1px solid #ccc; border-radius:5px;">
             </div>
 
-            <button onclick="submitOrder()" style="width:100%; padding:20px; margin-top:15px; background:var(--profit-green); color:white; border:none; border-radius:15px; font-weight:bold; font-size:1.6em;">結帳完成</button>
+            <button onclick="submitOrder()" style="width:100%; padding:20px; margin-top:15px; background:var(--profit-green); color:white; border:none; border-radius:15px; font-weight:bold; font-size:1.6em; flex-shrink: 0;">結帳 / 送單</button>
         </div>
-        <div class="card" style="flex:1; font-size: 1em; overflow-y: auto;">
+        <div class="card" style="font-size: 1em; overflow-y: auto; height: 150px; flex-shrink: 0;">
             <strong>📋 今日即時紀錄</strong>
             <div id="order-log"></div>
         </div>
     </div>
 </div>
 
-<div style="padding:15px; text-align:center; display: flex; justify-content: center; gap: 15px;">
-    <button onclick="toggleAdmin()" style="padding:15px 25px; border-radius:15px; background:white; border:3px solid var(--main-brown); font-weight:bold; font-size:1.1em; cursor:pointer;">🛠️ 商品管理 / 統計</button>
-    <button onclick="toggleHistory()" style="padding:15px 25px; border-radius:15px; background:var(--accent-brown); color:white; border:none; font-weight:bold; font-size:1.1em; cursor:pointer;">📜 歷史紀錄 / 退貨</button>
+<div style="padding:15px; text-align:center; display: flex; justify-content: center; gap: 15px; flex-shrink: 0;">
+    <button onclick="openModal('admin-panel')" style="padding:15px 25px; border-radius:15px; background:white; border:3px solid var(--main-brown); font-weight:bold; font-size:1.1em; cursor:pointer;">🛠️ 商品管理 / 統計</button>
+    <button onclick="openHistoryPanel()" style="padding:15px 25px; border-radius:15px; background:var(--accent-brown); color:white; border:none; font-weight:bold; font-size:1.1em; cursor:pointer;">📜 歷史紀錄 / 退貨</button>
 </div>
 
-<div id="history-panel">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <h2 style="margin:0;">📜 歷史紀錄管理</h2>
-        <button onclick="toggleHistory()" style="padding:8px 15px;">✕ 關閉</button>
-    </div>
-    <div style="background:#fdf5f0; padding:15px; border-radius:10px; margin-bottom:15px; display:flex; gap:15px; align-items:center;">
-        <div>
-            <label>單日：</label><input type="date" id="search-date" style="padding:8px;">
-            <button onclick="searchHistory('day')" style="padding:8px 15px; background:var(--main-brown); color:white; border:none;">🔍 查詢</button>
+<!-- 桌況明細 Modal -->
+<div id="table-details-modal" class="modal-overlay">
+    <div class="modal-content modal-small">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px; flex-shrink:0;">
+            <h2 style="margin:0;" id="td-modal-title">🪑 桌況明細</h2>
+            <button onclick="closeModal('table-details-modal')" style="font-size:1.5em; border:none; background:none; cursor:pointer;">✕</button>
         </div>
-        <div style="border-left: 2px solid #ddd; padding-left: 15px;">
-            <label>當月：</label><input type="month" id="search-month" style="padding:8px;">
-            <button onclick="searchHistory('month')" style="padding:8px 15px; background:var(--accent-brown); color:white; border:none;">📊 統計</button>
-        </div>
+        <div id="td-modal-info" style="background:#fdf5f0; padding:10px; border-radius:8px; font-weight:bold; margin-bottom:10px; flex-shrink:0;"></div>
+        <div id="td-modal-items" style="flex:1; overflow-y:auto; border:1px solid #eee; border-radius:8px; padding:10px; background:#fafafa;"></div>
+        <button id="td-modal-clear-btn" style="width:100%; padding:15px; background:#e53e3e; color:white; border:none; border-radius:10px; font-size:1.2em; font-weight:bold; margin-top:15px; flex-shrink:0; cursor:pointer;">🧹 清除桌面 (客離)</button>
     </div>
-    <div id="history-result-area" style="flex:1; overflow-y:auto; background:white; padding:15px; border-radius:10px; border:1px solid #eee;"></div>
 </div>
 
-<div id="admin-panel">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h2 style="margin:0;">⚙️ 管理中心</h2>
-        <div style="display:flex; gap:10px;">
-            <select id="admin-cat-jump" onchange="jumpToAdminCat(this.value)" style="padding:8px; border-radius:5px;">
-                <option value="">快速跳轉分類...</option>
-            </select>
-            <button onclick="exportToExcel()" style="padding:8px 15px; background:#217346; color:white; border:none;">📥 匯出</button>
-            <button onclick="backupData()" style="padding:8px 15px; background:#666; color:white; border:none;">💾 備份</button>
-            <input type="file" id="import-file" style="display:none;" onchange="importData(event)">
-            <button onclick="document.getElementById('import-file').click()" style="padding:8px 15px; background:#d9534f; color:white; border:none;">⚠️ 還原</button>
-            <button onclick="toggleAdmin()" style="padding:8px 15px;">✕ 關閉</button>
+<!-- History Modal -->
+<div id="history-panel" class="modal-overlay">
+    <div class="modal-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-shrink:0;">
+            <h2 style="margin:0;">📜 歷史紀錄管理</h2>
+            <button onclick="closeModal('history-panel')" style="font-size:1.5em; border:none; background:none; cursor:pointer;">✕</button>
         </div>
+        <div style="background:#fdf5f0; padding:15px; border-radius:10px; margin-bottom:15px; display:flex; gap:15px; align-items:center; flex-wrap:wrap; flex-shrink:0;">
+            <div>
+                <label>單日：</label><input type="date" id="search-date" style="padding:8px;">
+                <button onclick="searchHistory('day')" style="padding:8px 15px; background:var(--main-brown); color:white; border:none; border-radius:5px;">🔍 查詢</button>
+            </div>
+            <div style="border-left: 2px solid #ddd; padding-left: 15px;">
+                <label>當月：</label><input type="month" id="search-month" style="padding:8px;">
+                <button onclick="searchHistory('month')" style="padding:8px 15px; background:var(--accent-brown); color:white; border:none; border-radius:5px;">📊 統計</button>
+            </div>
+        </div>
+        <div id="history-result-area" style="flex:1; overflow-y:auto; background:white; padding:15px; border-radius:10px; border:1px solid #eee;"></div>
     </div>
-    
-    <div class="add-row-top">
-        <div><label>選擇分類</label><select id="select-cat" onchange="checkNewCat(this.value)"></select></div>
-        <div><label>代碼</label><input type="text" id="new-id" style="width:60px;"></div>
-        <div><label>品名</label><input type="text" id="new-n" style="width:180px;"></div>
-        <div><label>成本</label><input type="number" id="new-c" style="width:60px;"></div>
-        <div><label>售價</label><input type="number" id="new-p" style="width:60px;"></div>
-        <div><label>庫存</label><input type="number" id="new-s" style="width:60px;"></div>
-        <button onclick="addNewProduct()" style="background:var(--profit-green); color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">➕ 新增商品</button>
-    </div>
+</div>
 
-    <div class="admin-layout">
-        <div class="admin-table-container">
-            <table>
-                <thead><tr><th>順序</th><th>品名</th><th>成本</th><th>售價</th><th>庫存</th><th>刪</th></tr></thead>
-                <tbody id="admin-tbody"></tbody>
-            </table>
+<!-- Admin Modal (Main) -->
+<div id="admin-panel" class="modal-overlay">
+    <div class="modal-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-shrink:0;">
+            <h2 style="margin:0;">⚙️ 管理中心</h2>
+            <div style="display:flex; gap:10px;">
+                <button onclick="closeModal('admin-panel')" style="font-size:1.5em; border:none; background:none; cursor:pointer;">✕</button>
+            </div>
         </div>
-        <div style="background:#f9f9f9; padding:15px; border-radius:10px; overflow-y:auto;">
-            <h3>📊 銷售排名 (不分日期)</h3>
-            <table style="font-size:0.9em;">
-                <thead><tr style="background:#eee;"><th>品名</th><th>量</th><th>額</th></tr></thead>
-                <tbody id="stat-tbody"></tbody>
-            </table>
+
+        <div class="admin-actions">
+            <button onclick="openAddSingleModal()" style="padding:10px 20px; background:#48bb78; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">➕ 新增單品</button>
+            <button onclick="openAddComboModal()" style="padding:10px 20px; background:#ed8936; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">🍱 新增套餐</button>
+
+            <div style="margin-left:auto; display:flex; gap:10px;">
+                <button onclick="exportToExcel()" style="padding:8px 15px; background:#217346; color:white; border:none; border-radius:5px;">📥 匯出</button>
+                <button onclick="backupData()" style="padding:8px 15px; background:#666; color:white; border:none; border-radius:5px;">💾 備份</button>
+                <input type="file" id="import-file" style="display:none;" onchange="importData(event)">
+                <button onclick="document.getElementById('import-file').click()" style="padding:8px 15px; background:#d9534f; color:white; border:none; border-radius:5px;">⚠️ 還原</button>
+            </div>
         </div>
+
+        <div class="admin-layout">
+            <div class="admin-table-container">
+                <table id="admin-main-table">
+                    <thead><tr><th style="width:40px;"></th><th>類型</th><th>品名</th><th>成本</th><th>售價</th><th>庫存/內容</th><th>刪</th></tr></thead>
+                    <tbody id="admin-tbody"></tbody>
+                </table>
+            </div>
+            <div style="background:#f9f9f9; padding:15px; border-radius:10px; overflow-y:auto; max-height: 400px;">
+                <h3>📊 銷售排名</h3>
+                <table style="font-size:0.9em;">
+                    <thead><tr style="background:#eee;"><th>品名</th><th>量</th><th>額</th></tr></thead>
+                    <tbody id="stat-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Add Single Product -->
+<div id="modal-single-product" class="modal-overlay">
+    <div class="modal-content modal-small">
+        <h2 style="margin-top:0;">➕ 新增單品</h2>
+        <div style="flex:1; overflow-y:auto;">
+            <div class="form-group">
+                <label>商品分類</label>
+                <select id="single-cat" class="form-control" onchange="checkNewCat(this.value, 'single-cat')"></select>
+            </div>
+            <div class="form-group">
+                <label>商品代碼 (選填)</label>
+                <input type="text" id="single-id" class="form-control" placeholder="例如: A01">
+            </div>
+            <div class="form-group">
+                <label>商品名稱</label>
+                <input type="text" id="single-name" class="form-control" placeholder="請輸入名稱">
+            </div>
+            <div style="display:flex; gap:10px;">
+                <div class="form-group" style="flex:1;">
+                    <label>成本</label>
+                    <input type="number" id="single-cost" class="form-control" value="0">
+                </div>
+                <div class="form-group" style="flex:1;">
+                    <label>售價</label>
+                    <input type="number" id="single-price" class="form-control" value="0">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>初始庫存</label>
+                <input type="number" id="single-stock" class="form-control" value="99">
+            </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button onclick="closeModal('modal-single-product')" style="flex:1; padding:12px; border:1px solid #ccc; background:#fff; border-radius:8px; cursor:pointer;">取消</button>
+            <button onclick="saveSingleProduct()" class="btn-submit" style="flex:1; margin-top:0;">確認新增</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Add Combo Product -->
+<div id="modal-combo-product" class="modal-overlay">
+    <div class="modal-content">
+        <h2 style="margin-top:0;">🍱 新增套餐</h2>
+        <!-- Basic Info -->
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:150px;">
+                <label style="font-size:0.9em; color:#666;">分類</label>
+                <select id="combo-cat" class="form-control" onchange="checkNewCat(this.value, 'combo-cat')"></select>
+            </div>
+            <div style="flex:1; min-width:150px;">
+                <label style="font-size:0.9em; color:#666;">套餐名稱</label>
+                <input type="text" id="combo-name" class="form-control" placeholder="例: 下午茶組合">
+            </div>
+            <div style="width:100px;">
+                <label style="font-size:0.9em; color:#666;">售價</label>
+                <input type="number" id="combo-price" class="form-control" value="0">
+            </div>
+            <div style="width:80px;">
+                <label style="font-size:0.9em; color:#666;">代碼</label>
+                <input type="text" id="combo-id" class="form-control">
+            </div>
+        </div>
+
+        <!-- Combo Config -->
+        <div class="combo-config-area">
+            <div style="display:flex; gap:10px; margin-bottom:10px; align-items:center; background:#f0fdf4; padding:10px; border-radius:8px;">
+                <strong style="color:#2f855a;">步驟：</strong>
+                <span>1. 輸入群組名稱 (如: 飲品選一) </span>
+                <input type="text" id="combo-group-input" style="padding:5px; border-radius:4px; border:1px solid #ccc;" placeholder="群組名稱...">
+                <button onclick="addComboGroup()" style="background:#48bb78; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">＋ 加入群組</button>
+            </div>
+
+            <div class="combo-cols">
+                <!-- Left: Group List -->
+                <div class="combo-group-list" id="combo-group-list-ui">
+                    <div style="color:#999; text-align:center; padding:20px;">請先新增群組</div>
+                </div>
+
+                <!-- Right: Product Pool Checkboxes -->
+                <div class="combo-item-pool" id="combo-item-pool-ui">
+                    <div style="color:#999; text-align:center; padding:20px;">點選左側群組後，在此勾選內容</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button onclick="closeModal('modal-combo-product')" style="flex:1; padding:12px; border:1px solid #ccc; background:#fff; border-radius:8px; cursor:pointer;">取消</button>
+            <button onclick="saveComboProduct()" class="btn-submit" style="flex:1; margin-top:0;">完成並新增套餐</button>
+        </div>
+    </div>
+</div>
+
+<!-- Combo Customer Selection Modal -->
+<div id="combo-select-modal" class="modal-overlay">
+    <div class="modal-content modal-small">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px; flex-shrink:0;">
+            <h2 style="margin:0;" id="select-combo-title">選擇套餐內容</h2>
+            <button onclick="closeModal('combo-select-modal')" style="font-size:1.5em; border:none; background:none; cursor:pointer;">✕</button>
+        </div>
+        <div id="combo-selection-area" style="flex:1; overflow-y:auto;"></div>
+        <button onclick="confirmComboSelection()" style="width:100%; padding:15px; background:var(--main-brown); color:white; border:none; border-radius:10px; font-size:1.2em; font-weight:bold; margin-top:10px; flex-shrink:0;">確認加入清單</button>
     </div>
 </div>
 
 <script>
+    // --- 訊息策略設定 (Notyf 初始化 - 柔和且現代化的配置) ---
+    const notyf = new Notyf({
+        duration: 1500,
+        position: { x: 'center', y: 'top' }, // CSS 會強制將其精準垂直水平置中
+        dismissible: false,
+        ripple: false, // 關閉水波紋，整體感覺更扎實、高級
+        types: [
+            {
+                type: 'success',
+                background: '#6FCF97', // 較淺柔和的綠色
+                icon: false // 移除圖示，只顯示純文字
+            },
+            {
+                type: 'error',
+                background: '#FC8181', // 較淺柔和的紅色
+                icon: false // 移除預設的 'x' 圖示，只顯示純文字
+            }
+        ]
+    });
+
     const firebaseConfig = {
         apiKey: "AIzaSyAomzzRW15uwRZ91jhgH6ZRFZA-ldT1iXY",
         authDomain: "yupin-pos.firebaseapp.com",
@@ -172,205 +504,597 @@
     };
 
     let db;
+    let isOnline = false;
     try {
         firebase.initializeApp(firebaseConfig);
         db = firebase.database();
-    } catch(e) { 
-        console.log("Firebase未配置，使用本地模式"); 
+        isOnline = true;
+    } catch(e) {
+        console.log("Firebase未配置，使用本地模式");
     }
-    
-    let inv = []; 
+
+    let inv = [];
     let orders = [];
-    let cart = []; 
+    let cart = [];
     let currentPay = '現金';
 
+    // 定義固定桌位
+    const ALL_TABLES = ['吧台1', '吧台2', '吧台3', '吧台4', '吧台5', '桌位A', '桌位B', '桌位C', '桌位D'];
+    let activeTables = {}; // 追蹤正在使用中的桌子
+
     const defaultInv = [
-        { cat: "🧸 招牌玩偶", items: [{id: "A01", n: "經典小熊", c: 100, p: 250, s: 10}] },
-        { cat: "☕ 生活雜貨", items: [{id: "B01", n: "手作馬克杯", c: 50, p: 150, s: 20}] }
+        { cat: "🧸 招牌玩偶", items: [{id: "A01", n: "經典小熊", c: 100, p: 250, s: 10, type: "item"}] },
+        { cat: "☕ 飲品", items: [
+                {id: "D01", n: "清韻高山烏龍", c: 10, p: 50, s: 100, type: "item"},
+                {id: "D02", n: "雅韻高山烏龍", c: 12, p: 55, s: 100, type: "item"}
+            ]},
+        { cat: "🍰 甜點", items: [
+                {id: "C01", n: "提拉米蘇", c: 40, p: 120, s: 50, type: "item"},
+                {id: "C02", n: "巴斯克", c: 35, p: 110, s: 50, type: "item"}
+            ]}
     ];
 
+    // --- System Login & Security Logic (Web Crypto Hash + Salt) ---
+    const SALT = "YUPIN_POS_SECURE_SALT";
+
+    // 簡易的 SHA-256 雜湊處理 (非同步)
+    async function hashPassword(pwd) {
+        const msgBuffer = new TextEncoder().encode(pwd + SALT);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // 初始化：如果沒有存過密碼，預設為 "1234" 的 Hash
+    async function initSystemPassword() {
+        let storedHash = localStorage.getItem('yupin_pos_pwd_hash');
+        if (!storedHash) {
+            storedHash = await hashPassword('1234');
+            localStorage.setItem('yupin_pos_pwd_hash', storedHash);
+        }
+    }
+    initSystemPassword();
+
+    // 系統載入時強制顯示登入畫面
+    document.getElementById('login-overlay').style.display = 'flex';
+
+    async function checkSystemLogin() {
+        const input = document.getElementById('login-pwd-input').value;
+        if (!input) return notyf.error('請輸入密碼');
+
+        const inputHash = await hashPassword(input);
+        const storedHash = localStorage.getItem('yupin_pos_pwd_hash');
+
+        if (inputHash === storedHash) {
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('login-pwd-input').value = '';
+            // 登入成功後才載入資料，避免畫面提早渲染
+            if (inv.length === 0) loadData();
+        } else {
+            notyf.error('密碼不正確');
+        }
+    }
+
+    // 連點五次標題觸發改密碼
+    let headerClickCount = 0;
+    let headerClickTimer = null;
+    function handleHeaderSecretClick() {
+        headerClickCount++;
+        if (headerClickCount === 1) {
+            headerClickTimer = setTimeout(() => { headerClickCount = 0; }, 2000);
+        }
+        if (headerClickCount >= 5) {
+            clearTimeout(headerClickTimer);
+            headerClickCount = 0;
+            promptChangePassword();
+        }
+    }
+
+    function promptChangePassword() {
+        Swal.fire({
+            title: '管理員設定',
+            text: '請輸入新的系統登入密碼',
+            input: 'password',
+            inputPlaceholder: '新密碼',
+            showCancelButton: true,
+            confirmButtonText: '儲存變更',
+            cancelButtonText: '取消',
+            heightAuto: false
+        }).then(async (result) => {
+            if (result.isConfirmed && result.value) {
+                const newHash = await hashPassword(result.value);
+                localStorage.setItem('yupin_pos_pwd_hash', newHash);
+                notyf.success('系統密碼已更新');
+            }
+        });
+    }
+
+    // --- Core Data Logic ---
     function loadData() {
-        if(db && firebaseConfig.apiKey !== "請替換為您的API_KEY") {
+        initTableSelect(); // 初始化結帳區的桌號選單
+
+        if(isOnline) {
             db.ref('inventory').on('value', snap => {
                 inv = snap.val() || defaultInv;
                 initUI();
             });
             db.ref('orders').on('value', snap => {
                 const data = snap.val();
-                // 將 Firebase 物件轉換為陣列並包含 key
                 orders = data ? Object.keys(data).map(k => ({...data[k], firebaseKey: k})) : [];
-                orders.sort((a,b) => (b.d+b.t).localeCompare(a.d+a.t)); // 排序
-                updateLog(); 
+                orders.sort((a,b) => (b.d+b.t).localeCompare(a.d+a.t));
+                updateLog();
                 renderStatTable();
+            });
+            db.ref('active_tables').on('value', snap => {
+                activeTables = snap.val() || {};
+                renderTableDashboard();
             });
         } else {
             inv = defaultInv;
+            activeTables = JSON.parse(localStorage.getItem('yupin_pos_active_tables') || '{}');
             initUI();
+            renderTableDashboard();
         }
-    }
-    loadData();
-
-    function syncToDB() {
-        initUI();
-        if(db && firebaseConfig.apiKey !== "請替換為您的API_KEY") {
-            db.ref('inventory').set(inv).catch(e => console.log("雲端同步失敗"));
-        }
+        updateSyncBtnState();
     }
 
+    // 定期更新桌況顏色 (每 60 秒)
+    setInterval(() => {
+        if(document.getElementById('table-area').style.display !== 'none') {
+            renderTableDashboard();
+        }
+    }, 60000);
+
+    // --- Sync Logic (Atomic Updates) ---
+    function updateSyncBtnState() {
+        const localOrders = JSON.parse(localStorage.getItem('little_nook_offline_orders') || '[]');
+        const btn = document.getElementById('sync-btn');
+        if (localOrders.length > 0) {
+            btn.innerHTML = `⚠️ <b>${localOrders.length}</b> 筆未同步`;
+            btn.classList.add('has-data');
+        } else {
+            btn.innerHTML = `☁️ 雲端同步`;
+            btn.classList.remove('has-data');
+        }
+    }
+
+    function syncOfflineData() {
+        if(!isOnline) {
+            notyf.error('未連接到 Firebase 資料庫');
+            return;
+        }
+
+        const localOrders = JSON.parse(localStorage.getItem('little_nook_offline_orders') || '[]');
+
+        if (localOrders.length === 0) {
+            // Even if no orders, sync inventory and active_tables to cloud just in case of local overrides
+            let updates = {};
+            updates['/inventory'] = inv;
+            updates['/active_tables'] = activeTables;
+            db.ref().update(updates).then(() => notyf.success('系統設定與桌況已同步'));
+            return;
+        }
+
+        Swal.fire({
+            title: '準備同步',
+            text: `發現 ${localOrders.length} 筆離線訂單，確定上傳？`,
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonText: '立即同步',
+            showLoaderOnConfirm: true,
+            heightAuto: false,
+            preConfirm: () => {
+                let updates = {};
+                let localDeductions = {};
+
+                // 處理離線訂單與計算總扣除量
+                localOrders.forEach(order => {
+                    const newKey = db.ref('orders').push().key;
+                    updates['/orders/' + newKey] = order;
+
+                    order.items.forEach(cartItem => {
+                        if(cartItem.id === "支出") return;
+                        const ids = (cartItem.type === 'combo' && cartItem.comboDeductionIds) ? cartItem.comboDeductionIds : [cartItem.id];
+                        ids.forEach(subId => {
+                            localDeductions[subId] = (localDeductions[subId] || 0) + 1;
+                        });
+                    });
+                });
+
+                // 套用原子更新 (Atomic Increment) 避免競態條件
+                for(let subId in localDeductions) {
+                    for (let c = 0; c < inv.length; c++) {
+                        for (let i = 0; i < (inv[c].items || []).length; i++) {
+                            if (inv[c].items[i].id === subId) {
+                                updates[`/inventory/${c}/items/${i}/s`] = firebase.database.ServerValue.increment(-localDeductions[subId]);
+                            }
+                        }
+                    }
+                }
+
+                // Sync active tables state
+                updates['/active_tables'] = activeTables;
+
+                return db.ref().update(updates)
+                    .then(() => {
+                        localStorage.removeItem('little_nook_offline_orders');
+                        updateSyncBtnState();
+                    })
+                    .catch(error => {
+                        Swal.showValidationMessage(`Request failed: ${error}`);
+                    });
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+        }).then((result) => {
+            if (result.isConfirmed) {
+                notyf.success('離線訂單已上傳，庫存與桌況已更新');
+            }
+        });
+    }
+
+    // --- View Toggle Logic ---
+    function toggleView(view) {
+        const itemArea = document.getElementById('item-area');
+        const tableArea = document.getElementById('table-area');
+
+        if (view === 'tables') {
+            itemArea.style.display = 'none';
+            tableArea.style.display = 'block';
+            renderTableDashboard();
+        } else {
+            itemArea.style.display = 'block';
+            tableArea.style.display = 'none';
+        }
+    }
+
+    // --- Init Table Selector ---
+    function initTableSelect() {
+        const sel = document.getElementById('checkout-table');
+        sel.innerHTML = '<option value="">-- 必填：選擇桌號 --</option>' +
+            ALL_TABLES.map(t => `<option value="${t}">${t}</option>`).join('');
+    }
+
+    // --- Table Dashboard UI ---
+    function renderTableDashboard() {
+        const area = document.getElementById('table-area');
+        if(!area) return;
+
+        let html = `<h2 style="margin-top:0; color:#5d5246;">🪑 門市桌況監控</h2><div class="table-grid">`;
+        const now = Date.now();
+
+        ALL_TABLES.forEach(tName => {
+            const tableData = activeTables[tName];
+
+            if (tableData && tableData.items && tableData.items.length > 0) {
+                const elapsedMins = Math.floor((now - tableData.startTime) / 60000);
+                let colorClass = 't-green';
+                if (elapsedMins >= 120) colorClass = 't-red-blink';
+                else if (elapsedMins >= 90) colorClass = 't-yellow';
+
+                let totalItems = tableData.items.length; // 簡單計算總項數
+                html += `
+                    <div class="t-card ${colorClass}" onclick="openTableDetails('${tName}')">
+                        <div class="t-name">${tName}</div>
+                        <div class="t-time">⏱️ ${elapsedMins} 分鐘</div>
+                        <div class="t-items">已點 ${totalItems} 項</div>
+                    </div>`;
+            } else {
+                html += `
+                    <div class="t-card t-empty" onclick="notyf.success('此桌目前空閒')">
+                        <div class="t-name">${tName}</div>
+                        <div class="t-time">空桌</div>
+                    </div>`;
+            }
+        });
+        html += '</div>';
+        area.innerHTML = html;
+    }
+
+    function openTableDetails(tName) {
+        const data = activeTables[tName];
+        if(!data) return;
+
+        const elapsedMins = Math.floor((Date.now() - data.startTime) / 60000);
+        const startStr = new Date(data.startTime).toLocaleTimeString('zh-TW', {hour12:false});
+        let colorStyle = elapsedMins >= 120 ? 'color:red;' : (elapsedMins >= 90 ? 'color:#d69e2e;' : 'color:green;');
+
+        let itemsHtml = data.items.map(it => `
+            <div style="padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div style="font-weight:bold; font-size:1.1em;">${it.n}</div>
+                    ${it.comboDetail ? `<div style="font-size:0.85em; color:#666; margin-top:3px;">↳ ${it.comboDetail}</div>` : ''}
+                </div>
+                <div style="font-weight:bold; color:var(--accent-brown);">$${it.p}</div>
+            </div>
+        `).join('');
+
+        document.getElementById('td-modal-title').innerText = `🪑 ${tName} - 全單明細`;
+        document.getElementById('td-modal-info').innerHTML = `
+            入座時間：${startStr}
+            <span style="float:right; ${colorStyle}">已入座：${elapsedMins} 分鐘</span>
+        `;
+        document.getElementById('td-modal-items').innerHTML = itemsHtml;
+
+        document.getElementById('td-modal-clear-btn').onclick = () => clearTable(tName);
+
+        openModal('table-details-modal');
+    }
+
+    function clearTable(tName) {
+        Swal.fire({
+            title: `確定清空 ${tName}？`,
+            text: '客人已離場？這將會把桌位變回空桌狀態，不會影響已結帳的歷史營收',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e53e3e',
+            confirmButtonText: '確定清空',
+            cancelButtonText: '取消',
+            heightAuto: false
+        }).then(res => {
+            if(res.isConfirmed) {
+                if (isOnline) {
+                    db.ref('/active_tables/' + tName).remove().then(() => {
+                        notyf.success(`${tName} 已清空`);
+                        closeModal('table-details-modal');
+                    });
+                } else {
+                    delete activeTables[tName];
+                    localStorage.setItem('yupin_pos_active_tables', JSON.stringify(activeTables));
+                    renderTableDashboard();
+                    notyf.success(`${tName} 已清空 (離線)`);
+                    closeModal('table-details-modal');
+                }
+            }
+        });
+    }
+
+    // --- UI Rendering (Products) ---
     function initUI() {
         const area = document.getElementById('item-area'), nav = document.getElementById('navbar');
-        const jumpSelect = document.getElementById('admin-cat-jump');
+        // Removed jumpSelect retrieval as it is removed
         area.innerHTML = ''; nav.innerHTML = '';
-        if(jumpSelect) jumpSelect.innerHTML = '<option value="">快速跳轉分類...</option>';
-        
+
         inv.forEach((cat, idx) => {
-            nav.innerHTML += `<div class="nav-btn" onclick="document.getElementById('c${idx}').scrollIntoView()">${cat.cat}</div>`;
-            if(jumpSelect) jumpSelect.innerHTML += `<option value="ac${idx}">${cat.cat}</option>`;
-            
+            // Clicking a category automatically switches view back to products
+            nav.innerHTML += `<div class="nav-btn" onclick="toggleView('products'); document.getElementById('c${idx}').scrollIntoView()">${cat.cat}</div>`;
+
             let gridHtml = `<div class="cat-title" id="c${idx}">${cat.cat}</div><div class="product-grid">`;
             if(!cat.items || cat.items.length === 0) {
                 gridHtml += `<div style="color:#999; padding:10px;">此分類暫無商品</div>`;
             } else {
-                cat.items.forEach(it => {
-                    gridHtml += `<div class="p-btn" onclick="addCart('${it.id}')">
+                cat.items.forEach((it, itemIdx) => {
+                    const isCombo = it.type === 'combo';
+                    gridHtml += `<div class="p-btn ${isCombo ? 'combo-item' : ''}" onclick="addCartClick(${idx}, ${itemIdx})">
+                        ${isCombo ? '<span class="combo-badge">套餐</span>' : ''}
                         <div class="p-name">${it.id} ${it.n}</div>
                         <div class="p-price">$${it.p}</div>
-                        <div class="p-stock">存:${it.s}</div>
+                        <div class="p-stock">${isCombo ? '自選' : '存:'+it.s}</div>
                     </div>`;
                 });
             }
             area.innerHTML += gridHtml + '</div>';
         });
-        updateCatSelect();
+
+        // Update Select options in Modals
+        updateCatSelect('single-cat');
+        updateCatSelect('combo-cat');
+
         if(document.getElementById('admin-panel').style.display === 'flex') renderAdminTable();
     }
 
-    // --- 即時紀錄功能 ---
-    function updateLog() {
-        const logArea = document.getElementById('order-log');
-        const today = new Date().toLocaleDateString('zh-TW');
-        const todayOrders = orders.filter(o => o.d === today).slice(0, 10);
-        
-        if(todayOrders.length === 0) {
-            logArea.innerHTML = '<div style="color:#999; padding:10px; text-align:center;">今日尚無交易</div>';
+    // --- Modal Helpers ---
+    function openModal(id) {
+        document.getElementById(id).style.display = 'flex';
+        if(id === 'admin-panel') renderAdminTable();
+    }
+    function closeModal(id) {
+        document.getElementById(id).style.display = 'none';
+    }
+
+    // Auto-load history for today
+    function openHistoryPanel() {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const todayStr = `${yyyy}-${mm}-${dd}`;
+
+        document.getElementById('search-date').value = todayStr;
+        openModal('history-panel');
+        searchHistory('day');
+    }
+
+    // --- Add Single Product Logic ---
+    function openAddSingleModal() {
+        // Reset form
+        document.getElementById('single-id').value = '';
+        document.getElementById('single-name').value = '';
+        document.getElementById('single-price').value = '';
+        document.getElementById('single-cost').value = '';
+        document.getElementById('single-stock').value = '99';
+        updateCatSelect('single-cat');
+        openModal('modal-single-product');
+    }
+
+    function saveSingleProduct() {
+        const catN = document.getElementById('single-cat').value;
+        const n = document.getElementById('single-name').value;
+        const p = Number(document.getElementById('single-price').value);
+        const c = Number(document.getElementById('single-cost').value);
+        const s = Number(document.getElementById('single-stock').value);
+        let id = document.getElementById('single-id').value;
+
+        if(!n || !catN) return notyf.error('請填寫分類與名稱');
+
+        const category = inv.find(v => v.cat === catN);
+        if(category) {
+            if(!category.items) category.items = [];
+            if(!id) id = Date.now().toString().slice(-4);
+            category.items.push({ id, n, c, p, s, type: 'item' });
+
+            if (isOnline) {
+                db.ref('inventory').set(inv).then(() => {
+                    closeModal('modal-single-product');
+                    notyf.success('商品已新增');
+                });
+            } else {
+                closeModal('modal-single-product');
+                notyf.success('商品已新增 (離線)');
+                initUI();
+            }
+        }
+    }
+
+    // --- Add Combo Product Logic ---
+    let tempComboSpecs = [];
+    let tempActiveGroupIdx = -1;
+
+    function openAddComboModal() {
+        document.getElementById('combo-name').value = '';
+        document.getElementById('combo-price').value = '';
+        document.getElementById('combo-id').value = '';
+        updateCatSelect('combo-cat');
+        tempComboSpecs = [];
+        tempActiveGroupIdx = -1;
+        renderComboConfigUI();
+        openModal('modal-combo-product');
+    }
+
+    function addComboGroup() {
+        const name = document.getElementById('combo-group-input').value.trim();
+        if(!name) return notyf.error('請輸入群組名稱');
+        tempComboSpecs.push({ title: name, options: [] });
+        document.getElementById('combo-group-input').value = '';
+        tempActiveGroupIdx = tempComboSpecs.length - 1;
+        renderComboConfigUI();
+    }
+
+    function setComboActiveGroup(idx) {
+        tempActiveGroupIdx = idx;
+        renderComboConfigUI();
+    }
+
+    function toggleItemInCombo(id, checked) {
+        if(tempActiveGroupIdx === -1) return;
+        const group = tempComboSpecs[tempActiveGroupIdx];
+        if(checked) {
+            if(!group.options.includes(id)) group.options.push(id);
+        } else {
+            group.options = group.options.filter(x => x !== id);
+        }
+        renderComboConfigUI();
+    }
+
+    function renderComboConfigUI() {
+        const listEl = document.getElementById('combo-group-list-ui');
+        if(tempComboSpecs.length === 0) {
+            listEl.innerHTML = '<div style="color:#999; text-align:center; padding:20px;">請先新增群組</div>';
+        } else {
+            listEl.innerHTML = tempComboSpecs.map((g, idx) => `
+                <div class="group-card ${idx === tempActiveGroupIdx ? 'active' : ''}" onclick="setComboActiveGroup(${idx})">
+                    <div style="font-weight:bold;">${g.title}</div>
+                    <div style="font-size:0.8em; color:#666;">已選 ${g.options.length} 項</div>
+                    <div style="text-align:right; font-size:0.8em; color:red;" onclick="event.stopPropagation(); removeComboGroup(${idx})">刪除</div>
+                </div>
+            `).join('');
+        }
+
+        const poolEl = document.getElementById('combo-item-pool-ui');
+        if(tempActiveGroupIdx === -1) {
+            poolEl.innerHTML = '<div style="color:#999; text-align:center; padding:20px;">請點選左側群組以勾選內容</div>';
             return;
         }
 
-        logArea.innerHTML = todayOrders.map(o => `
-            <div style="border-bottom:1px solid #eee; padding:5px 0; font-size:0.9em;">
-                <span style="color:#888;">[${o.t}]</span> <b>$${o.total}</b> (${o.pay})
-                <div style="color:#666; font-size:0.85em;">${o.items.map(i => i.n).join(', ')}</div>
-            </div>
-        `).join('');
-    }
-
-    // --- 歷史與統計功能 ---
-    function searchHistory(mode) {
-        const resultArea = document.getElementById('history-result-area');
-        let filtered = [];
-        let title = "";
-
-        if(mode === 'day') {
-            const date = document.getElementById('search-date').value;
-            if(!date) return alert("請選擇日期");
-            const dateStr = new Date(date).toLocaleDateString('zh-TW');
-            filtered = orders.filter(o => o.d === dateStr);
-            title = `📅 ${dateStr} 交易紀錄`;
-        } else {
-            const month = document.getElementById('search-month').value; // YYYY-MM
-            if(!month) return alert("請選擇月份");
-            filtered = orders.filter(o => {
-                const parts = o.d.split('/'); // 假設格式是 2026/1/4
-                const oMonth = `${parts[0]}-${parts[1].padStart(2,'0')}`;
-                return oMonth === month;
+        const currentOptions = tempComboSpecs[tempActiveGroupIdx].options;
+        let html = '';
+        inv.forEach(cat => {
+            let catHtml = `<div style="font-weight:bold; margin-top:5px; margin-bottom:5px; background:#eee; padding:2px 5px;">${cat.cat}</div><div class="checkbox-grid">`;
+            let hasItems = false;
+            (cat.items || []).forEach(item => {
+                if(item.type === 'combo') return;
+                hasItems = true;
+                const isChecked = currentOptions.includes(item.id);
+                catHtml += `
+                    <label class="check-item">
+                        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleItemInCombo('${item.id}', this.checked)">
+                        <span>${item.n}</span>
+                    </label>`;
             });
-            title = `📊 ${month} 月度統計`;
-        }
-
-        let totalRev = 0, totalProf = 0;
-        let html = `<h3>${title}</h3>`;
-
-        if(filtered.length === 0) {
-            html += "<p>此時段無資料</p>";
-        } else {
-            filtered.forEach(o => {
-                totalRev += o.total;
-                totalProf += (o.profit || 0);
-                html += `
-                <div class="history-card">
-                    <div class="history-del-btn" onclick="deleteOrder('${o.firebaseKey}')">退貨/刪除</div>
-                    <strong>【${o.pay}】總計: $${o.total}</strong> <small>(${o.d} ${o.t})</small><br>
-                    <span style="font-size:0.9em; color:#666;">內容: ${o.items.map(i=>`${i.n}x1`).join(', ')}</span>
-                    ${o.note ? `<br><small style="color:blue;">備註: ${o.note}</small>` : ''}
-                </div>`;
-            });
-            html = `<div style="background:#e8f5e9; padding:10px; border-radius:8px; margin-bottom:10px;">
-                        <b>總營收: $${totalRev}</b> | <b>預估毛利: $${totalProf}</b> | <b>單數: ${filtered.length}</b>
-                    </div>` + html;
-        }
-        resultArea.innerHTML = html;
-    }
-
-    function deleteOrder(key) {
-        if(!db) return alert("本地模式不支援刪除");
-        if(confirm("確定要執行退貨並刪除此紀錄嗎？(注意：此動作不會自動補回庫存，需手動調整)")) {
-            db.ref('orders').child(key).remove()
-              .then(() => alert("已刪除紀錄"))
-              .catch(e => alert("刪除失敗"));
-        }
-    }
-
-    function renderStatTable() {
-        const stats = {};
-        orders.forEach(o => {
-            o.items.forEach(it => {
-                if(it.id === "支出") return;
-                if(!stats[it.n]) stats[it.n] = { qty: 0, amt: 0 };
-                stats[it.n].qty += 1;
-                stats[it.n].amt += it.p;
-            });
+            catHtml += '</div>';
+            if(hasItems) html += catHtml;
         });
-
-        const sorted = Object.entries(stats).sort((a,b) => b[1].qty - a[1].qty);
-        document.getElementById('stat-tbody').innerHTML = sorted.map(([name, data]) => `
-            <tr>
-                <td style="text-align:left;">${name}</td>
-                <td>${data.qty}</td>
-                <td>$${data.amt}</td>
-            </tr>
-        `).join('');
+        poolEl.innerHTML = html;
     }
 
-    // --- 原有邏輯修正與補強 ---
-    function checkNewCat(val) {
-        if(val === "ADD") { 
-            const n = prompt("請輸入新分類名稱："); 
-            if(n) { 
-                inv.push({cat: n, items: []}); 
-                syncToDB();
+    function removeComboGroup(idx) {
+        tempComboSpecs.splice(idx, 1);
+        tempActiveGroupIdx = -1;
+        renderComboConfigUI();
+    }
+
+    function saveComboProduct() {
+        const catN = document.getElementById('combo-cat').value;
+        const n = document.getElementById('combo-name').value;
+        const p = Number(document.getElementById('combo-price').value);
+        let id = document.getElementById('combo-id').value;
+
+        if(!n || !catN) return notyf.error('請填寫分類與名稱');
+        if(tempComboSpecs.length === 0) return notyf.error('套餐至少需要一個內容群組');
+
+        const category = inv.find(v => v.cat === catN);
+        if(category) {
+            if(!category.items) category.items = [];
+            if(!id) id = Date.now().toString().slice(-4);
+
+            category.items.push({
+                id, n, p, c:0, s:0,
+                type: 'combo',
+                comboSpecs: tempComboSpecs
+            });
+
+            if (isOnline) {
+                db.ref('inventory').set(inv).then(() => {
+                    closeModal('modal-combo-product');
+                    notyf.success('套餐已建立');
+                });
+            } else {
+                closeModal('modal-combo-product');
+                notyf.success('套餐已建立 (離線)');
+                initUI();
             }
-            document.getElementById('select-cat').selectedIndex = 0;
         }
     }
 
-    function deleteCategory(ci) {
-        if(confirm(`⚠️ 確定要刪除「${inv[ci].cat}」及其所有商品？`)) {
-            inv.splice(ci, 1);
-            if(inv.length === 0) inv = [{cat: "預設分類", items: []}]; 
-            syncToDB();
-        }
+    // --- Admin General Functions ---
+    function updateCatSelect(id) {
+        const sel = document.getElementById(id);
+        if(!sel) return;
+        sel.innerHTML = inv.map(c => `<option value="${c.cat}">${c.cat}</option>`).join('') +
+            `<option value="ADD">➕ 新增分類...</option>`;
     }
 
-    function editCategoryName(ci) {
-        const n = prompt("請修改分類名稱：", inv[ci].cat);
-        if (n) { inv[ci].cat = n; syncToDB(); }
-    }
+    function checkNewCat(val, id) {
+        if(val === "ADD") {
+            Swal.fire({
+                title: '新增分類',
+                input: 'text',
+                inputLabel: '請輸入分類名稱',
+                showCancelButton: true,
+                heightAuto: false
+            }).then((result) => {
+                if(result.isConfirmed && result.value) {
+                    inv.push({cat: result.value, items: []});
+                    if(isOnline) db.ref('inventory').set(inv);
 
-    function updateCatSelect() {
-        const sel = document.getElementById('select-cat');
-        if(sel) {
-            sel.innerHTML = inv.map(c => `<option value="${c.cat}">${c.cat}</option>`).join('') + 
-                           `<option value="ADD">➕ 新增分類</option>`;
+                    setTimeout(() => {
+                        updateCatSelect('single-cat');
+                        updateCatSelect('combo-cat');
+                        document.getElementById(id).value = result.value;
+                    }, 500);
+                } else {
+                    document.getElementById(id).selectedIndex = 0;
+                }
+            });
         }
     }
 
@@ -378,55 +1102,387 @@
         let html = '';
         inv.forEach((cat, ci) => {
             html += `<tr id="ac${ci}" style="background:#eee;">
-                <td colspan="6" style="text-align:left; padding:10px;">
+                <td colspan="7" style="text-align:left; padding:10px;">
                     <b>📂 ${cat.cat}</b>
                     <button class="edit-cat-btn" onclick="editCategoryName(${ci})">✏️</button>
                     <button class="del-cat-btn" onclick="deleteCategory(${ci})">🗑️</button>
                 </td>
             </tr>`;
             (cat.items || []).forEach((it, ii) => {
-                html += `<tr>
-                    <td><span onclick="move(${ci},${ii},-1)" style="cursor:pointer">↑</span> <span onclick="move(${ci},${ii},1)" style="cursor:pointer">↓</span></td>
-                    <td style="text-align:left;"><input type="text" value="${it.n}" onchange="editItem(${ci},${ii},'n',this.value)" class="admin-input-large"></td>
-                    <td><input type="number" value="${it.c}" onchange="editItem(${ci},${ii},'c',this.value)" style="width:50px;"></td>
-                    <td><input type="number" value="${it.p}" onchange="editItem(${ci},${ii},'p',this.value)" style="width:50px;"></td>
-                    <td><input type="number" value="${it.s}" onchange="editItem(${ci},${ii},'s',this.value)" style="width:50px;"></td>
+                const isCombo = it.type === 'combo';
+                html += `<tr draggable="true" data-cat="${ci}" data-idx="${ii}" class="draggable-row">
+                    <td><span class="drag-handle">☰</span></td>
+                    <td>${isCombo ? '<span style="color:blue">套餐</span>' : '單品'}</td>
+                    <td style="text-align:left;"><input type="text" value="${it.n}" onchange="editItem(${ci},${ii},'n',this.value)" class="admin-table-input"></td>
+                    <td>${isCombo ? '-' : `<input type="number" value="${it.c}" onchange="editItem(${ci},${ii},'c',this.value)" class="admin-table-input" style="width:60px;">`}</td>
+                    <td><input type="number" value="${it.p}" onchange="editItem(${ci},${ii},'p',this.value)" class="admin-table-input" style="width:60px;"></td>
+                    <td>
+                        ${isCombo
+                    ? `<button onclick="editComboSpecs(${ci},${ii})" class="btn-setting">⚙️ 內容</button>`
+                    : `<input type="number" value="${it.s}" onchange="editItem(${ci},${ii},'s',this.value)" class="admin-table-input" style="width:60px;">`}
+                    </td>
                     <td><span onclick="delP(${ci},${ii})" class="del-x">✕</span></td>
                 </tr>`;
             });
         });
-        document.getElementById('admin-tbody').innerHTML = html;
+        const tbody = document.getElementById('admin-tbody');
+        tbody.innerHTML = html;
+
+        // Add Drag and Drop Listeners (Desktop)
+        const rows = tbody.querySelectorAll('.draggable-row');
+        rows.forEach(row => {
+            row.addEventListener('dragstart', handleDragStart);
+            row.addEventListener('dragover', handleDragOver);
+            row.addEventListener('drop', handleDrop);
+            row.addEventListener('dragend', handleDragEnd);
+        });
+
+        // Add Touch Listeners for Mobile Drag & Drop
+        const handles = tbody.querySelectorAll('.drag-handle');
+        handles.forEach(handle => {
+            handle.addEventListener('touchstart', handleTouchStart, {passive: false});
+            handle.addEventListener('touchmove', handleTouchMove, {passive: false});
+            handle.addEventListener('touchend', handleTouchEnd);
+        });
     }
 
-    function addNewProduct() {
-        const catN = document.getElementById('select-cat').value;
-        const id = document.getElementById('new-id').value, n = document.getElementById('new-n').value;
-        const c = Number(document.getElementById('new-c').value), p = Number(document.getElementById('new-p').value), s = Number(document.getElementById('new-s').value);
-        if(!n || !catN || catN === "ADD") return alert("請填寫品名並選擇分類");
-        
-        const category = inv.find(v => v.cat === catN);
-        if(category) {
-            if(!category.items) category.items = [];
-            category.items.push({id: id || Date.now().toString().slice(-4), n, c, p, s});
-            syncToDB();
-            ['new-id','new-n','new-c','new-p','new-s'].forEach(f => document.getElementById(f).value='');
+    let dragSrcEl = null;
+
+    function handleDragStart(e) {
+        dragSrcEl = this;
+        e.dataTransfer.effectAllowed = 'move';
+        this.classList.add('dragging');
+    }
+
+    function handleDragOver(e) {
+        if (e.preventDefault) e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        return false;
+    }
+
+    function handleDrop(e) {
+        if (e.stopPropagation) e.stopPropagation();
+
+        let target = e.target.closest('tr');
+        if (dragSrcEl !== target && target.classList.contains('draggable-row')) {
+            const srcCat = dragSrcEl.dataset.cat;
+            const srcIdx = parseInt(dragSrcEl.dataset.idx);
+            const tgtCat = target.dataset.cat;
+            const tgtIdx = parseInt(target.dataset.idx);
+
+            if (srcCat === tgtCat) {
+                const items = inv[srcCat].items;
+                const [movedItem] = items.splice(srcIdx, 1);
+                items.splice(tgtIdx, 0, movedItem);
+
+                if(isOnline) db.ref('inventory').set(inv);
+                renderAdminTable();
+            } else {
+                notyf.error('只能在同一分類內調整順序');
+            }
+        }
+        return false;
+    }
+
+    function handleDragEnd(e) {
+        this.classList.remove('dragging');
+    }
+
+    // --- Mobile Touch Event Handlers for Drag and Drop ---
+    function handleTouchStart(e) {
+        dragSrcEl = this.closest('tr');
+        dragSrcEl.classList.add('dragging');
+
+        const clone = dragSrcEl.cloneNode(true);
+        const tableWrapper = document.createElement('table');
+        tableWrapper.id = 'touch-drag-clone';
+
+        const originalTable = document.getElementById('admin-main-table');
+        tableWrapper.style.cssText = `
+            position: fixed; pointer-events: none; z-index: 9999; opacity: 0.95;
+            box-shadow: 0 15px 25px rgba(0,0,0,0.3); background: white;
+            border-collapse: collapse; width: ${originalTable.getBoundingClientRect().width}px;
+        `;
+
+        const tbody = document.createElement('tbody');
+        tbody.appendChild(clone);
+        tableWrapper.appendChild(tbody);
+
+        Array.from(dragSrcEl.children).forEach((td, i) => {
+            clone.children[i].style.width = td.getBoundingClientRect().width + 'px';
+            clone.children[i].style.boxSizing = 'border-box';
+        });
+
+        document.body.appendChild(tableWrapper);
+
+        const touch = e.touches[0];
+        const rect = dragSrcEl.getBoundingClientRect();
+
+        dragSrcEl._touchOffsetX = touch.clientX - rect.left;
+        dragSrcEl._touchOffsetY = touch.clientY - rect.top;
+
+        tableWrapper.style.left = rect.left + 'px';
+        tableWrapper.style.top = rect.top + 'px';
+    }
+
+    function handleTouchMove(e) {
+        if (!dragSrcEl) return;
+        e.preventDefault();
+
+        const touch = e.touches[0];
+        const cloneTable = document.getElementById('touch-drag-clone');
+
+        if (cloneTable) {
+            cloneTable.style.left = (touch.clientX - dragSrcEl._touchOffsetX) + 'px';
+            cloneTable.style.top = (touch.clientY - dragSrcEl._touchOffsetY) + 'px';
+        }
+
+        const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (!targetEl) return;
+
+        const targetRow = targetEl.closest('tr.draggable-row');
+
+        const rows = document.querySelectorAll('.draggable-row');
+        rows.forEach(r => {
+            r.style.borderTop = '';
+            r.style.borderBottom = '';
+        });
+
+        if (targetRow && targetRow !== dragSrcEl && targetRow.dataset.cat === dragSrcEl.dataset.cat) {
+            const srcIdx = parseInt(dragSrcEl.dataset.idx);
+            const tgtIdx = parseInt(targetRow.dataset.idx);
+
+            if (tgtIdx < srcIdx) {
+                targetRow.style.borderTop = '2px solid var(--accent-brown)';
+            } else {
+                targetRow.style.borderBottom = '2px solid var(--accent-brown)';
+            }
         }
     }
 
-    function addCart(id) {
-        let target = null;
-        inv.forEach(c => (c.items || []).forEach(i => { if(i.id === id) target = i; }));
-        if(target) { 
-            if(target.s <= 0) { if(!confirm("庫存不足，仍要加入？")) return; }
-            cart.push({...target}); 
-            renderCart(); 
+    function handleTouchEnd(e) {
+        if (!dragSrcEl) return;
+        dragSrcEl.classList.remove('dragging');
+
+        const cloneTable = document.getElementById('touch-drag-clone');
+        if (cloneTable) cloneTable.remove();
+
+        const touch = e.changedTouches[0];
+        const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+
+        const rows = document.querySelectorAll('.draggable-row');
+        rows.forEach(r => {
+            r.style.borderTop = '';
+            r.style.borderBottom = '';
+        });
+
+        if (targetEl) {
+            const targetRow = targetEl.closest('tr.draggable-row');
+            if (targetRow && targetRow !== dragSrcEl) {
+                const srcCat = dragSrcEl.dataset.cat;
+                const srcIdx = parseInt(dragSrcEl.dataset.idx);
+                const tgtCat = targetRow.dataset.cat;
+                const tgtIdx = parseInt(targetRow.dataset.idx);
+
+                if (srcCat === tgtCat) {
+                    const items = inv[srcCat].items;
+                    const [movedItem] = items.splice(srcIdx, 1);
+                    items.splice(tgtIdx, 0, movedItem);
+
+                    if(isOnline) db.ref('inventory').set(inv);
+                    renderAdminTable();
+                } else {
+                    notyf.error('只能在同一分類內調整順序');
+                }
+            }
         }
+        dragSrcEl = null;
+    }
+
+
+    function editComboSpecs(ci, ii) {
+        const item = inv[ci].items[ii];
+        document.getElementById('combo-name').value = item.n;
+        document.getElementById('combo-price').value = item.p;
+        document.getElementById('combo-id').value = item.id;
+        document.getElementById('combo-cat').value = inv[ci].cat;
+
+        tempComboSpecs = JSON.parse(JSON.stringify(item.comboSpecs || []));
+        tempActiveGroupIdx = tempComboSpecs.length > 0 ? 0 : -1;
+        renderComboConfigUI();
+
+        const btn = document.querySelector('#modal-combo-product .btn-submit');
+        const oldText = btn.innerText;
+        const oldOnClick = btn.onclick;
+
+        btn.innerText = "更新套餐";
+        btn.onclick = function() {
+            item.n = document.getElementById('combo-name').value;
+            item.p = Number(document.getElementById('combo-price').value);
+            item.id = document.getElementById('combo-id').value;
+            item.comboSpecs = tempComboSpecs;
+
+            if(isOnline) db.ref('inventory').set(inv);
+
+            closeModal('modal-combo-product');
+            notyf.success('套餐內容已更新');
+
+            btn.innerText = oldText;
+            btn.onclick = oldOnClick;
+        };
+
+        openModal('modal-combo-product');
+    }
+
+    function editItem(ci, ii, k, v) {
+        inv[ci].items[ii][k] = (k==='n'?v:Number(v));
+        if(isOnline) db.ref('inventory').set(inv);
+    }
+
+    function delP(ci, ii) {
+        Swal.fire({ title: '確定刪除?', text: "此操作無法復原", icon: 'warning', showCancelButton: true, heightAuto: false }).then((res) => {
+            if(res.isConfirmed) {
+                inv[ci].items.splice(ii,1);
+                if(isOnline) db.ref('inventory').set(inv);
+                renderAdminTable();
+            }
+        });
+    }
+
+    function deleteCategory(ci) {
+        Swal.fire({ title: `刪除分類「${inv[ci].cat}」?`, text: "分類下所有商品也會消失", icon: 'warning', showCancelButton: true, heightAuto: false }).then((res) => {
+            if(res.isConfirmed) {
+                inv.splice(ci, 1);
+                if(inv.length === 0) inv = [{cat: "預設分類", items: []}];
+                if(isOnline) db.ref('inventory').set(inv);
+                renderAdminTable();
+                initUI();
+            }
+        });
+    }
+
+    function editCategoryName(ci) {
+        Swal.fire({ title: '修改分類名稱', input: 'text', inputValue: inv[ci].cat, showCancelButton: true, heightAuto: false }).then((res)=>{
+            if(res.isConfirmed && res.value) {
+                inv[ci].cat = res.value;
+                if(isOnline) db.ref('inventory').set(inv);
+                renderAdminTable(); initUI();
+            }
+        });
+    }
+
+    // --- POS Front-end Logic ---
+    let pendingCombo = null;
+
+    function addCartClick(catIdx, itemIdx) {
+        const item = inv[catIdx].items[itemIdx];
+        if (item.type === 'combo') {
+            openComboSelectModal(item);
+        } else {
+            addCartDirect(item);
+        }
+    }
+
+    function addCartDirect(item) {
+        if(item.s <= 0) {
+            Swal.fire({ title: '庫存不足', text: '仍要加入購物車嗎？', icon: 'question', showCancelButton: true, heightAuto: false }).then((res)=>{
+                if(res.isConfirmed) { cart.push({...item}); renderCart(); }
+            });
+            return;
+        }
+        cart.push({...item});
+        renderCart();
+    }
+
+    function openComboSelectModal(item) {
+        if (!item.comboSpecs || item.comboSpecs.length === 0) {
+            notyf.error('此套餐尚未設定內容');
+            return;
+        }
+        pendingCombo = { ...item, selection: {} };
+        const modal = document.getElementById('combo-select-modal');
+        const area = document.getElementById('combo-selection-area');
+        document.getElementById('select-combo-title').innerText = `選擇：${item.n}`;
+        modal.style.display = 'flex';
+
+        let html = '';
+        item.comboSpecs.forEach((group, gIdx) => {
+            html += `<div class="combo-select-step">
+                <div class="combo-step-title">步驟 ${gIdx+1}: ${group.title}</div>
+                <div>`;
+
+            group.options.forEach(optId => {
+                const targetItem = findItemById(optId);
+                if (targetItem) {
+                    const stockText = targetItem.s <= 0 ? '(缺貨)' : '';
+                    const styleClass = targetItem.s <= 0 ? 'combo-option disabled' : 'combo-option';
+                    html += `<span class="${styleClass}" onclick="selectComboOption('${group.title}', '${optId}', this)">
+                        ${targetItem.n} ${stockText}
+                    </span>`;
+                }
+            });
+            html += `</div></div>`;
+        });
+        area.innerHTML = html;
+    }
+
+    function selectComboOption(groupTitle, optId, el) {
+        if (el.classList.contains('disabled')) return;
+        const siblings = el.parentNode.children;
+        for (let i=0; i<siblings.length; i++) siblings[i].classList.remove('selected');
+        el.classList.add('selected');
+        pendingCombo.selection[groupTitle] = optId;
+    }
+
+    function confirmComboSelection() {
+        const specs = pendingCombo.comboSpecs;
+        for (let spec of specs) {
+            if (!pendingCombo.selection[spec.title]) {
+                notyf.error(`請選擇：${spec.title}`);
+                return;
+            }
+        }
+
+        const detailNames = [];
+        const detailIds = [];
+        for (let key in pendingCombo.selection) {
+            const iId = pendingCombo.selection[key];
+            const item = findItemById(iId);
+            if(item) {
+                detailNames.push(item.n);
+                detailIds.push(iId);
+            }
+        }
+
+        cart.push({
+            ...pendingCombo,
+            comboDetail: detailNames.join(' + '),
+            comboDeductionIds: detailIds
+        });
+
+        closeModal('combo-select-modal');
+        renderCart();
+    }
+
+    function findItemById(id) {
+        for (let c of inv) {
+            for (let i of c.items) {
+                if (i.id === id) return i;
+            }
+        }
+        return null;
     }
 
     function renderCart() {
         document.getElementById('cart-list').innerHTML = cart.map((it, i) => `
-            <div class="cart-item"><span>${it.id} ${it.n}</span><b>$${it.p}</b>
-            <span onclick="cart.splice(${i},1);renderCart()" style="color:red; cursor:pointer;">✕</span></div>`).join('');
+            <div class="cart-item">
+                <div style="flex:1;">
+                    <div>${it.id} ${it.n}</div>
+                    ${it.comboDetail ? `<span class="cart-details">↳ ${it.comboDetail}</span>` : ''}
+                </div>
+                <b>$${it.p}</b>
+                <span onclick="cart.splice(${i},1);renderCart()" style="color:red; cursor:pointer; margin-left:10px;">✕</span>
+            </div>`).join('');
         calc();
     }
 
@@ -447,89 +1503,267 @@
         document.getElementById('btn-elec').className = m==='電支'?'pay-btn active':'pay-btn';
     }
 
+    // --- Atomic Submit Order & Auto-Restock Logic ---
     function submitOrder() {
-        if(!cart.length) return;
+        if(!cart.length) return notyf.error('購物車是空的');
+
+        const selectedTable = document.getElementById('checkout-table').value;
+        if(!selectedTable) return notyf.error('請先選擇桌號！');
+
         const total = Number(document.getElementById('final-total').innerText);
-        const backdateMode = document.getElementById('backdate-mode').checked;
-        const manualDate = document.getElementById('manual-date').value;
-        
-        const dateObj = (backdateMode && manualDate) ? new Date(manualDate) : new Date();
-        
-        const orderData = { 
-            t: new Date().toLocaleTimeString('zh-TW', {hour12:false}), 
-            d: dateObj.toLocaleDateString('zh-TW'),
-            total, 
-            profit: total - cart.reduce((a,b)=>a+(b.c||0), 0), 
-            pay: currentPay, 
-            items: [...cart], 
-            discount: Number(document.getElementById('discount').value || 0), 
-            note: document.getElementById('discount-note').value 
-        };
-        
-        // 扣庫存
-        cart.forEach(item => { 
-            inv.forEach(c => (c.items || []).forEach(i => { if(i.id === item.id) i.s--; })); 
+
+        Swal.fire({
+            title: '確認結帳?',
+            html: `總金額: <b style="color:red; font-size:1.2em;">$${total}</b><br>支付方式: ${currentPay}<br>桌號: <b>${selectedTable}</b>`,
+            showCancelButton: true,
+            confirmButtonText: '確認結帳',
+            cancelButtonText: '取消',
+            heightAuto: false
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const backdateMode = document.getElementById('backdate-mode').checked;
+                const manualDate = document.getElementById('manual-date').value;
+                const dateObj = (backdateMode && manualDate) ? new Date(manualDate) : new Date();
+
+                let totalCost = 0;
+                let stockDeductions = {};
+
+                cart.forEach(item => {
+                    if (item.id === "支出") return;
+
+                    const ids = (item.type === 'combo' && item.comboDeductionIds) ? item.comboDeductionIds : [item.id];
+                    ids.forEach(subId => {
+                        const realItem = findItemById(subId);
+                        if(realItem) totalCost += (realItem.c || 0);
+                        stockDeductions[subId] = (stockDeductions[subId] || 0) + 1;
+                    });
+                });
+
+                const orderData = {
+                    t: new Date().toLocaleTimeString('zh-TW', {hour12:false}),
+                    d: dateObj.toLocaleDateString('zh-TW'),
+                    total,
+                    profit: total - totalCost,
+                    pay: currentPay,
+                    table: selectedTable,
+                    items: [...cart],
+                    discount: Number(document.getElementById('discount').value || 0),
+                    note: document.getElementById('discount-note').value
+                };
+
+                // Prepare Active Table Data
+                let newTableData = null;
+                if (activeTables[selectedTable]) {
+                    // Table already occupied, just append items
+                    newTableData = {
+                        startTime: activeTables[selectedTable].startTime, // Keep original start time
+                        items: [...(activeTables[selectedTable].items || []), ...cart]
+                    };
+                } else {
+                    // New table session
+                    newTableData = {
+                        startTime: Date.now(),
+                        items: [...cart]
+                    };
+                }
+
+                if(isOnline) {
+                    let updates = {};
+                    const newOrderKey = db.ref('orders').push().key;
+                    updates['/orders/' + newOrderKey] = orderData;
+
+                    // Update active tables
+                    if (newTableData) {
+                        updates['/active_tables/' + selectedTable] = newTableData;
+                    }
+
+                    // 使用 Firebase ServerValue.increment 避免競態條件 (Race Condition)
+                    for (let subId in stockDeductions) {
+                        for (let c = 0; c < inv.length; c++) {
+                            for (let i = 0; i < (inv[c].items || []).length; i++) {
+                                if (inv[c].items[i].id === subId) {
+                                    updates[`/inventory/${c}/items/${i}/s`] = firebase.database.ServerValue.increment(-stockDeductions[subId]);
+                                }
+                            }
+                        }
+                    }
+
+                    db.ref().update(updates).then(() => {
+                        notyf.success('結帳成功！桌況與資料已同步');
+                    }).catch(e => notyf.error('同步失敗: ' + e.message));
+
+                } else {
+                    // Offline Mode
+                    orders.unshift(orderData);
+                    const localOrders = JSON.parse(localStorage.getItem('little_nook_offline_orders') || '[]');
+                    localOrders.push(orderData);
+                    localStorage.setItem('little_nook_offline_orders', JSON.stringify(localOrders));
+                    updateSyncBtnState();
+
+                    // UI 暫時扣減 & 更新本地桌況
+                    if (newTableData) {
+                        activeTables[selectedTable] = newTableData;
+                        localStorage.setItem('yupin_pos_active_tables', JSON.stringify(activeTables));
+                        renderTableDashboard();
+                    }
+
+                    cart.forEach(cartItem => {
+                        if (cartItem.type === 'combo' && cartItem.comboDeductionIds) {
+                            cartItem.comboDeductionIds.forEach(subId => {
+                                inv.forEach(c => (c.items || []).forEach(i => { if(i.id === subId) i.s--; }));
+                            });
+                        } else {
+                            inv.forEach(c => (c.items || []).forEach(i => { if(i.id === cartItem.id) i.s--; }));
+                        }
+                    });
+
+                    notyf.success('本地結帳成功！已更新桌況並儲存至離線清單');
+                    updateLog();
+                }
+
+                cart=[];
+                document.getElementById('discount').value = '';
+                document.getElementById('discount-note').value = '';
+                document.getElementById('cash-in').value = '';
+                document.getElementById('checkout-table').value = ''; // 結帳後清空桌號選項
+                renderCart();
+            }
         });
-        
-        if(db && firebaseConfig.apiKey !== "請替換為您的API_KEY") {
-            db.ref('orders').push(orderData);
-            db.ref('inventory').set(inv);
-            alert("結帳成功！已同步至 Firebase");
-        } else {
-            orders.unshift(orderData);
-            alert("本地結帳成功！(未連接 Firebase)");
-            updateLog();
-        }
-        
-        cart=[]; 
-        document.getElementById('discount').value = '';
-        document.getElementById('discount-note').value = '';
-        document.getElementById('cash-in').value = '';
-        renderCart(); 
-        syncToDB();
     }
 
     function addExtraCost() {
-        const amount = prompt("請輸入支出金額：");
-        if (!amount || isNaN(amount)) return;
-        const reason = prompt("支出原因？") || "雜項支出";
-        cart.push({ id: "支出", n: "[支] " + reason, p: 0, c: Number(amount), s: 0 });
-        renderCart();
+        Swal.fire({
+            title: '紀錄額外支出',
+            html: '<input id="swal-cost" class="swal2-input" placeholder="金額"><input id="swal-reason" class="swal2-input" placeholder="原因">',
+            showCancelButton: true,
+            heightAuto: false
+        }).then((res)=>{
+            if(res.isConfirmed) {
+                const amt = document.getElementById('swal-cost').value;
+                const rsn = document.getElementById('swal-reason').value || "雜支";
+                if(amt && !isNaN(amt)) {
+                    cart.push({ id: "支出", n: "[支] " + rsn, p: 0, c: Number(amt), s: 0 });
+                    renderCart();
+                }
+            }
+        });
     }
 
-    function editItem(ci, ii, k, v) { inv[ci].items[ii][k] = (k==='n'?v:Number(v)); syncToDB(); }
-    function move(ci, ii, dir) { 
-        let items = inv[ci].items; 
-        if(ii+dir>=0 && ii+dir<items.length){ [items[ii], items[ii+dir]]=[items[ii+dir], items[ii]]; renderAdminTable(); syncToDB(); }
+    function updateLog() {
+        const logArea = document.getElementById('order-log');
+        const today = new Date().toLocaleDateString('zh-TW');
+        const todayOrders = orders.filter(o => o.d === today).slice(0, 10);
+        if(todayOrders.length === 0) { logArea.innerHTML = '<div style="color:#999; padding:10px; text-align:center;">今日尚無交易</div>'; return; }
+        logArea.innerHTML = todayOrders.map(o => `
+            <div style="border-bottom:1px solid #eee; padding:5px 0; font-size:0.9em;">
+                <span style="color:#888;">[${o.t}]</span> <b>$${o.total}</b> (${o.pay}) ${o.table ? `<span style="color:var(--accent-brown); font-weight:bold;">[${o.table}]</span>` : ''}
+                <div style="color:#666; font-size:0.85em;">${o.items.map(i => i.n + (i.comboDetail ? '(套)' : '')).join(', ')}</div>
+            </div>`).join('');
     }
-    function delP(ci, ii) { if(confirm("確定刪除商品？")){ inv[ci].items.splice(ii,1); syncToDB(); } }
-    function toggleAdmin() { const p = document.getElementById('admin-panel'); p.style.display = p.style.display === 'flex' ? 'none' : 'flex'; if(p.style.display === 'flex') renderAdminTable(); }
-    function toggleHistory() { const p = document.getElementById('history-panel'); p.style.display = p.style.display === 'flex' ? 'none' : 'flex'; }
-    function jumpToAdminCat(val) { if(val) document.getElementById(val).scrollIntoView({behavior: "smooth"}); }
-    
+
+    function searchHistory(mode) {
+        const resultArea = document.getElementById('history-result-area');
+        let filtered = [];
+        let title = "";
+        if(mode === 'day') {
+            const date = document.getElementById('search-date').value;
+            if(!date) return notyf.error('請選擇日期');
+            const dateStr = new Date(date).toLocaleDateString('zh-TW');
+            filtered = orders.filter(o => o.d === dateStr);
+            title = `📅 ${dateStr} 交易紀錄`;
+        } else {
+            const month = document.getElementById('search-month').value;
+            if(!month) return notyf.error('請選擇月份');
+            filtered = orders.filter(o => {
+                const parts = o.d.split('/');
+                const oMonth = `${parts[0]}-${parts[1].padStart(2,'0')}`;
+                return oMonth === month;
+            });
+            title = `📊 ${month} 月度統計`;
+        }
+        let totalRev = 0, totalProf = 0;
+        let html = `<h3>${title}</h3>`;
+        if(filtered.length === 0) { html += "<p>此時段無資料</p>"; } else {
+            filtered.forEach(o => {
+                totalRev += o.total;
+                totalProf += (o.profit || 0);
+                html += `<div class="history-card">
+                    <div class="history-del-btn" onclick="deleteOrder('${o.firebaseKey}')">退貨/刪除</div>
+                    <strong>【${o.pay}】總計: $${o.total}</strong> ${o.table ? `<span style="color:var(--accent-brown); font-weight:bold;">[${o.table}]</span>` : ''} <small>(${o.d} ${o.t})</small><br>
+                    <span style="font-size:0.9em; color:#666;">內容: ${o.items.map(i=>`${i.n}${i.comboDetail?`[${i.comboDetail}]`:''}`).join(', ')}</span>
+                </div>`;
+            });
+            html = `<div style="background:#e8f5e9; padding:10px; border-radius:8px; margin-bottom:10px;"><b>總營收: $${totalRev}</b> | <b>預估毛利: $${totalProf}</b> | <b>單數: ${filtered.length}</b></div>` + html;
+        }
+        resultArea.innerHTML = html;
+    }
+
+    // --- Auto-Restock Order Deletion ---
+    function deleteOrder(key) {
+        if(!isOnline) return notyf.error('本地模式不支援刪除，請連線後操作');
+        Swal.fire({
+            title: '確定退貨/刪除?',
+            text: '系統將自動退回此單的商品庫存',
+            icon: 'warning',
+            showCancelButton: true,
+            heightAuto: false
+        }).then((res)=>{
+            if(res.isConfirmed) {
+                const orderToDel = orders.find(o => o.firebaseKey === key);
+                if(!orderToDel) return notyf.error('找不到該筆訂單');
+
+                let updates = {};
+                updates[`/orders/${key}`] = null;
+
+                let stockIncrements = {};
+                orderToDel.items.forEach(item => {
+                    if (item.id === "支出") return;
+                    const ids = (item.type === 'combo' && item.comboDeductionIds) ? item.comboDeductionIds : [item.id];
+                    ids.forEach(subId => {
+                        stockIncrements[subId] = (stockIncrements[subId] || 0) + 1;
+                    });
+                });
+
+                // 回補庫存的原子更新
+                for (let subId in stockIncrements) {
+                    for (let c = 0; c < inv.length; c++) {
+                        for (let i = 0; i < (inv[c].items || []).length; i++) {
+                            if (inv[c].items[i].id === subId) {
+                                updates[`/inventory/${c}/items/${i}/s`] = firebase.database.ServerValue.increment(stockIncrements[subId]);
+                            }
+                        }
+                    }
+                }
+
+                db.ref().update(updates)
+                    .then(() => {
+                        notyf.success('紀錄已刪除，庫存已回補');
+                        // Optional: Re-run search if needed, but Firebase 'on' listener will refresh the array soon.
+                        document.getElementById('search-date').value && searchHistory('day');
+                    })
+                    .catch(e => notyf.error('刪除失敗: ' + e.message));
+            }
+        });
+    }
+
+    function renderStatTable() {
+        const stats = {};
+        orders.forEach(o => { o.items.forEach(it => { if(it.id === "支出") return; if(!stats[it.n]) stats[it.n] = { qty: 0, amt: 0 }; stats[it.n].qty += 1; stats[it.n].amt += it.p; }); });
+        const sorted = Object.entries(stats).sort((a,b) => b[1].qty - a[1].qty);
+        document.getElementById('stat-tbody').innerHTML = sorted.map(([name, data]) => `<tr><td style="text-align:left;">${name}</td><td>${data.qty}</td><td>$${data.amt}</td></tr>`).join('');
+    }
+
     function backupData() {
-        const blob = new Blob([JSON.stringify({inv, orders}, null, 2)], { type: "application/json" });
-        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `LittleNook_Backup_${new Date().toLocaleDateString()}.json`; a.click();
+        const blob = new Blob([JSON.stringify({inv, orders, activeTables}, null, 2)], { type: "application/json" });
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `YupinTea_Backup_${new Date().toLocaleDateString()}.json`; a.click();
     }
-
     function exportToExcel() {
-        const data = orders.map(o => ({
-            "日期": o.d, "時間": o.t, "總額": o.total, "毛利": o.profit, "支付方式": o.pay, "備註": o.note, "商品明細": o.items.map(i=>i.n).join(',')
-        }));
+        const data = orders.map(o => ({ "日期": o.d, "時間": o.t, "桌號": o.table||'', "總額": o.total, "毛利": o.profit, "支付方式": o.pay, "備註": o.note, "商品明細": o.items.map(i=>i.n + (i.comboDetail ? `[${i.comboDetail}]` : '')).join(',') }));
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Sales");
         XLSX.writeFile(wb, `Sales_Export_${new Date().toLocaleDateString()}.xlsx`);
     }
-
-    function syncOfflineData() {
-        if(db) {
-            db.ref('inventory').set(inv);
-            alert("手動同步完成");
-        }
-    }
 </script>
 </body>
 </html>
-
-
