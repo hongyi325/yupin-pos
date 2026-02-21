@@ -148,18 +148,54 @@
         .cart-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 12px 0; font-size: 1.05em; border-bottom: 1px solid var(--bg-body); }
         .cart-details { font-size: 0.85em; color: var(--text-muted); margin-top: 4px; display: block; display: flex; gap: 4px; align-items: center; }
 
-        /* 輸入與控制元件 (解決裁切與跑版問題：使用高度而非 padding 垂直推擠) */
+        /* --- 輸入與控制元件 (解決 iOS 裁切與跑版問題核心) --- */
         .big-input, .table-select, .form-control {
-            font-size: 1.05em; padding: 0 16px; height: 48px; width: 100%; border-radius: var(--radius-md);
-            border: 1px solid #E2DED9; text-align: left; box-sizing: border-box;
-            background: var(--bg-body); color: var(--text-main); font-weight: 500; transition: all 0.2s;
+            font-size: 16px !important; /* 確保 16px 避免 iOS 自動縮放造成跑版 */
+            padding: 0 16px;
+            min-height: 48px;
+            width: 100%;
+            border-radius: var(--radius-md);
+            border: 1px solid #E2DED9;
+            text-align: left;
+            box-sizing: border-box;
+            background: var(--bg-body);
+            color: var(--text-main);
+            font-weight: 500;
+            transition: all 0.2s;
+            line-height: normal;
+            -webkit-appearance: none; /* 移除 iOS 預設樣式以防止內建 padding 推擠破版 */
+            appearance: none;
         }
         .big-input:focus, .table-select:focus, .form-control:focus { outline: none; border-color: var(--primary); background: #FFF; box-shadow: 0 0 0 4px rgba(156, 131, 106, 0.1); }
-        .big-input { text-align: right; font-size: 1.4em; font-weight: 700; background: #FFF; border-color: var(--border-soft); height: 54px; }
+        .big-input { text-align: right; font-size: 1.25em !important; font-weight: 700; background: #FFF; border-color: var(--border-soft); min-height: 54px; }
 
-        .table-select { text-align: center; color: var(--primary); background: #FDFCF9; border-width: 2px; font-weight: 700; cursor: pointer; height: 54px; }
+        /* 桌號下拉選單專屬防呆設計 */
+        .table-select {
+            text-align: center;
+            text-align-last: center; /* 讓文字在下拉選單內真正置中 */
+            color: var(--primary);
+            background-color: #FDFCF9;
+            border-width: 2px;
+            font-weight: 700;
+            cursor: pointer;
+            min-height: 54px;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239C836A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            background-size: 18px;
+            padding-right: 40px; /* 留出箭頭空間 */
+        }
 
-        .small-note { font-size: 1em; padding: 0 16px; height: 44px; width: 100%; border-radius: var(--radius-md); border: 1px solid #E2DED9; box-sizing: border-box; margin-top: 8px; background: var(--bg-body); }
+        .small-note { font-size: 16px !important; padding: 0 16px; min-height: 48px; width: 100%; border-radius: var(--radius-md); border: 1px solid #E2DED9; box-sizing: border-box; margin-top: 8px; background: var(--bg-body); }
+
+        /* 日期選擇器修復 (針對 iOS 跑版) */
+        input[type="date"].form-control {
+            padding: 12px 16px;
+            font-family: inherit;
+            background-color: #FFF;
+            display: block;
+            min-height: 52px;
+        }
 
         .total-display { font-size: 2.8em; font-weight: 800; color: var(--danger-red); text-align: right; margin: 16px 0; letter-spacing: -1px; }
 
@@ -515,22 +551,34 @@
             .combo-group-list { width: 100%; height: auto; max-height: 200px; border-right: none; border-bottom: 1px solid var(--border-soft); padding-right: 0; padding-bottom: 12px; margin-bottom: 12px; }
             .combo-item-pool { width: 100%; height: auto; max-height: 300px; padding-left: 0; border-left: none; }
 
-            /* 修正手機版桌號選擇與輸入框間距、縮小 Placeholder */
-            .table-select { font-size: 1.05em; height: 52px; margin-bottom: 16px; }
-            .big-input { font-size: 1.3em !important; height: 52px; margin-top: 8px; margin-bottom: 8px; }
-            .big-input::placeholder { font-size: 0.8em; }
-            .small-note { height: 48px; margin-top: 12px; margin-bottom: 12px; font-size: 0.95em; }
+            /* 修正手機版桌號選擇與輸入框間距、縮小 Placeholder 與字體 */
+            .table-select { font-size: 16px !important; height: 56px !important; margin-bottom: 20px; }
+            .big-input { font-size: 16px !important; min-height: 56px; margin-top: 12px; margin-bottom: 16px; }
+            .big-input::placeholder { font-size: 0.9em; }
+            .small-note { font-size: 16px !important; min-height: 52px; margin-top: 12px; margin-bottom: 20px; }
             .small-note::placeholder { font-size: 0.9em; }
 
+            input[type="date"].form-control {
+                font-size: 16px !important;
+                margin-top: 12px;
+                width: 100%;
+                min-height: 52px;
+            }
+
             /* 結帳區內的區塊增加上下間距 */
-            #checkout-drawer .card > div[style*="margin-top:12px"] { margin-top: 20px !important; }
             #cart-list { margin-bottom: 16px; margin-top: 16px; }
         }
 
         /* 修復日期選擇框內距導致手機版裁切或破版的問題 */
         input[type="date"].form-control {
-            padding: 0 12px;
+            padding: 12px 16px;
             font-family: inherit;
+            background-color: #FFF;
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+            appearance: none;
         }
 
         /* 桌面端隱藏手機抽屜頭部 */
@@ -584,7 +632,7 @@
 
             <div id="cart-list"></div>
             <div style="margin-top:12px; flex-shrink: 0;">
-                <input type="number" id="discount" class="big-input" placeholder="折扣金額" oninput="calc()" style="text-align: left;">
+                <input type="number" id="discount" class="big-input" placeholder="折扣金額" oninput="calc()">
                 <input type="text" id="discount-note" class="small-note" placeholder="折扣原因/備註 (例如: 滿額贈)">
                 <div style="margin-top:8px; display:flex; gap:8px;">
                     <button onclick="addExtraCost()" style="flex:1; padding:12px; background:#FFF5F5; border:1px solid #FED7D7; color:var(--danger-red); border-radius:10px; cursor:pointer; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px;"><i class="ph-bold ph-plus-circle"></i> 紀錄額外支出</button>
