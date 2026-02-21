@@ -2,8 +2,8 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🍵 御品泡茶體驗</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>御品泡茶體驗</title>
 
     <!-- 引入 Firebase v8 (已移除 auth，退回簡易前端防護) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -11,213 +11,443 @@
     <!-- 引入 XLSX 用於匯出 Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-    <!-- 引入 SweetAlert2 (處理對話、確認、輸入) -->
+    <!-- 引入 SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    <!-- 引入 Notyf (處理輕量化 Toast 提示) -->
+    <!-- 引入 Notyf -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
     <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
 
+    <!-- 引入 Phosphor Icons (現代質感向量圖示) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
     <style>
-        :root { --main-brown: #b0a496; --bg-cream: #fcf8f5; --accent-brown: #8c7b6c; --price-red: #d9534f; --profit-green: #6b8e23; }
-        body { font-family: sans-serif; background: var(--bg-cream); margin: 0; display: flex; flex-direction: column; height: 100vh; color: #5d5246; overflow: hidden; }
-        header { background: var(--main-brown); color: white; padding: 12px; text-align: center; font-size: 1.3em; font-weight: bold; flex-shrink: 0; cursor: default; user-select: none; }
+        /* 現代化色彩與設計系統 Token */
+        :root {
+            --bg-body: #F7F6F3;
+            --bg-card: #FFFFFF;
+            --primary: #9C836A;     /* 莫蘭迪奶茶色 */
+            --primary-hover: #8C735B;
+            --accent-green: #5A8F69; /* 柔和品牌綠 */
+            --danger-red: #D96C6C;   /* 柔和紅 */
+            --text-main: #3C3633;
+            --text-muted: #8E8A86;
+            --border-soft: #EFEBE6;
+            --shadow-soft: 0 4px 24px rgba(60, 54, 51, 0.06);
+            --shadow-float: 0 12px 32px rgba(156, 131, 106, 0.2);
+            --radius-md: 14px;
+            --radius-lg: 20px;
+            --radius-pill: 999px;
+            --font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
-        /* Nav Bar */
-        .nav-bar { background: #e8e0d9; padding: 10px; display: flex; gap: 10px; overflow-x: auto; border-bottom: 2px solid #d1c7bc; flex-shrink: 0; align-items: center; white-space: nowrap; -webkit-overflow-scrolling: touch; }
-        .nav-btn { background: white; border: 1px solid #d1c7bc; padding: 8px 18px; border-radius: 20px; white-space: nowrap; cursor: pointer; font-size: 1.1em; flex-shrink: 0; }
+            /* 補回舊版變數映射，解決按鈕沒底色的問題 */
+            --main-brown: var(--primary);
+            --accent-brown: var(--primary);
+            --profit-green: var(--accent-green);
+            --price-red: var(--danger-red);
+        }
 
-        /* Dashboard Buttons */
-        .dash-btn { background: var(--accent-brown); color: white; border: none; padding: 8px 18px; border-radius: 20px; font-weight: bold; cursor: pointer; flex-shrink: 0; transition: transform 0.1s; }
-        .dash-btn:active { transform: scale(0.95); }
+        body {
+            font-family: var(--font-family); background: var(--bg-body); margin: 0;
+            display: flex; flex-direction: column; height: 100vh; color: var(--text-main);
+            overflow: hidden; -webkit-font-smoothing: antialiased;
+        }
 
-        /* Improved Sync Button */
+        /* 頂部 Header */
+        header {
+            background: var(--bg-card); color: var(--primary); padding: 16px;
+            text-align: center; font-size: 1.25em; font-weight: 700; flex-shrink: 0;
+            cursor: default; user-select: none; border-bottom: 1px solid var(--border-soft);
+            display: flex; justify-content: center; align-items: center; gap: 8px;
+            box-shadow: var(--shadow-soft); z-index: 10;
+        }
+
+        /* Nav Bar 導覽列 */
+        .nav-bar {
+            background: var(--bg-body); padding: 12px 16px; display: flex; gap: 12px;
+            overflow-x: auto; border-bottom: 1px solid var(--border-soft); flex-shrink: 0;
+            align-items: center; white-space: nowrap; -webkit-overflow-scrolling: touch;
+        }
+        .nav-bar::-webkit-scrollbar { display: none; }
+        .nav-btn {
+            background: var(--bg-card); border: 1px solid var(--border-soft); color: var(--text-main);
+            padding: 10px 20px; border-radius: var(--radius-pill); cursor: pointer;
+            font-size: 1em; font-weight: 500; transition: all 0.2s; min-height: 44px;
+            display: flex; align-items: center; gap: 6px; box-shadow: var(--shadow-soft);
+        }
+        .nav-btn:active { transform: scale(0.96); opacity: 0.9; }
+
+        .dash-btn {
+            background: var(--primary); color: white; border: none; padding: 10px 20px;
+            border-radius: var(--radius-pill); font-weight: 600; cursor: pointer; transition: all 0.2s;
+            min-height: 44px; display: flex; align-items: center; gap: 6px; box-shadow: var(--shadow-float);
+        }
+        .dash-btn:active { transform: scale(0.96); opacity: 0.9; }
+
         .sync-btn {
-            background: #718096; color: white; border: none; padding: 8px 18px; border-radius: 20px; font-weight: bold; cursor: pointer; margin-left: auto; flex-shrink: 0;
-            display: flex; align-items: center; gap: 5px; transition: all 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            background: var(--text-muted); color: white; border: none; padding: 10px 20px;
+            border-radius: var(--radius-pill); font-weight: 600; cursor: pointer; margin-left: auto;
+            display: flex; align-items: center; gap: 6px; transition: all 0.3s; min-height: 44px;
         }
-        .sync-btn.has-data {
-            background: #e53e3e;
-            animation: pulse 2s infinite;
-        }
+        .sync-btn:active { transform: scale(0.96); }
+        .sync-btn.has-data { background: var(--danger-red); animation: pulse 2s infinite; }
         @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(229, 62, 62, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(229, 62, 62, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(229, 62, 62, 0); }
+            0% { box-shadow: 0 0 0 0 rgba(217, 108, 108, 0.6); }
+            70% { box-shadow: 0 0 0 10px rgba(217, 108, 108, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(217, 108, 108, 0); }
         }
 
         /* Main Layout */
-        .main-content { display: flex; flex: 1; overflow: hidden; padding: 10px; gap: 10px; }
+        .main-content { display: flex; flex: 1; overflow: hidden; padding: 16px; gap: 16px; }
 
-        /* Left Area (Products & Tables) */
-        .left-pane { flex: 1.8; display: flex; flex-direction: column; overflow: hidden; background: white; border-radius: 15px; border: 2px solid #e8e0d9; position: relative; }
-        .item-area { flex: 1; overflow-y: auto; padding: 15px; }
-        .table-area { flex: 1; overflow-y: auto; padding: 15px; display: none; background: #fdfaf7; }
+        /* 左側顯示區 (商品/桌況) */
+        .left-pane {
+            flex: 1.8; display: flex; flex-direction: column; overflow: hidden;
+            background: transparent; position: relative;
+        }
+        .item-area { flex: 1; overflow-y: auto; padding-right: 8px; }
+        .table-area { flex: 1; overflow-y: auto; display: none; }
 
-        .cat-title { background: #fdf5f0; padding: 8px 15px; border-radius: 20px; margin: 15px 0 8px; font-weight: bold; border-left: 8px solid var(--main-brown); font-size: 1.2em; clear: both; }
+        /* 商品分類與 Grid */
+        .cat-title {
+            padding: 10px 0; margin: 16px 0 12px; font-weight: 700; color: var(--text-main);
+            font-size: 1.25em; display: flex; align-items: center; gap: 8px;
+        }
+        .cat-title i { color: var(--primary); }
 
-        /* Product Grid */
-        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 10px; }
-        .p-btn { background: white; border: 1px solid #f0e6dd; border-radius: 12px; padding: 10px 5px; text-align: center; cursor: pointer; box-shadow: 2px 2px 0 #e8e0d9; min-height: 90px; display: flex; flex-direction: column; justify-content: center; position: relative; }
-        .p-btn.combo-item { border: 2px solid var(--accent-brown); background: #fffcf8; }
-        .combo-badge { position: absolute; top: -5px; right: -5px; background: var(--accent-brown); color: white; font-size: 0.7em; padding: 2px 6px; border-radius: 10px; }
-        .p-name { font-size: 0.85em; font-weight: bold; margin-bottom: 5px; height: 2.8em; overflow: hidden; line-height: 1.4; }
-        .p-price { color: #c2966d; font-size: 1.2em; font-weight: bold; }
-        .p-stock { font-size: 0.8em; color: #999; }
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+        .p-btn {
+            background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: var(--radius-md);
+            padding: 16px 12px; text-align: center; cursor: pointer; box-shadow: var(--shadow-soft);
+            min-height: 100px; display: flex; flex-direction: column; justify-content: center;
+            position: relative; transition: all 0.2s;
+        }
+        .p-btn:active { transform: scale(0.96); box-shadow: none; border-color: var(--primary); }
+        .p-btn.combo-item { border: 2px solid var(--primary); background: #FDFCF9; }
+        .combo-badge {
+            position: absolute; top: 8px; right: 8px; background: var(--primary); color: white;
+            font-size: 0.7em; padding: 4px 8px; border-radius: var(--radius-pill); font-weight: 600;
+        }
+        .p-name { font-size: 0.9em; font-weight: 600; margin-bottom: 8px; height: 2.6em; overflow: hidden; line-height: 1.3; color: var(--text-main); }
+        .p-price { color: var(--primary); font-size: 1.15em; font-weight: 700; margin-bottom: 4px; }
+        .p-stock { font-size: 0.8em; color: var(--text-muted); font-weight: 500; }
 
-        /* Checkout Area */
-        .checkout-area { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 320px; overflow-y: auto; }
-        .card { background: white; border-radius: 15px; padding: 12px; border: 2px solid #e8e0d9; display: flex; flex-direction: column; }
-        #cart-list { flex: 1; min-height: 150px; max-height: 300px; overflow-y: auto; border-bottom: 2px dashed #e8e0d9; }
-        .cart-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 12px 5px; font-size: 1.1em; border-bottom: 1px solid #eee; }
-        .cart-details { font-size: 0.8em; color: #666; margin-left: 10px; display: block; }
+        /* 右側結帳與紀錄區 (iPad 端) */
+        .checkout-area {
+            flex: 1; display: flex; flex-direction: column; gap: 16px;
+            min-width: 360px; overflow-y: auto; max-width: 450px;
+        }
+        .card {
+            background: var(--bg-card); border-radius: var(--radius-lg); padding: 20px;
+            border: 1px solid var(--border-soft); display: flex; flex-direction: column;
+            box-shadow: var(--shadow-soft);
+        }
+        .card-header-title { font-size: 1.1em; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; color: var(--text-main); }
 
-        .big-input { font-size: 1.8em; padding: 12px; width: 100%; border-radius: 10px; border: 2px solid #d1c7bc; text-align: right; box-sizing: border-box; background: #fffcf5; font-weight: bold; }
-        .table-select { font-size: 1.4em; padding: 10px; width: 100%; border-radius: 10px; border: 2px solid var(--main-brown); background: #fdf5f0; font-weight: bold; color: var(--accent-brown); margin-bottom: 10px; text-align: center; }
-        .small-note { font-size: 1em; padding: 8px; width: 100%; border-radius: 8px; border: 1px solid #d1c7bc; box-sizing: border-box; margin-top: 5px; }
-        .total-display { font-size: 3.2em; font-weight: bold; color: var(--price-red); text-align: right; margin: 10px 0; }
-        .pay-btn { flex: 1; padding: 15px; border-radius: 10px; border: 1px solid #ccc; background: white; cursor: pointer; font-weight: bold; font-size: 1.3em;}
-        .pay-btn.active { background: var(--accent-brown); color: white; border-color: var(--accent-brown); }
+        #cart-list { flex: 1; min-height: 180px; max-height: 350px; overflow-y: auto; border-bottom: 1px dashed var(--border-soft); margin-bottom: 12px; }
+        .cart-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 12px 0; font-size: 1.05em; border-bottom: 1px solid var(--bg-body); }
+        .cart-details { font-size: 0.85em; color: var(--text-muted); margin-top: 4px; display: block; display: flex; gap: 4px; align-items: center; }
+
+        /* 輸入與控制元件 */
+        .big-input, .table-select, .form-control {
+            font-size: 1.1em; padding: 14px 16px; width: 100%; border-radius: var(--radius-md);
+            border: 1px solid #E2DED9; text-align: left; box-sizing: border-box;
+            background: var(--bg-body); color: var(--text-main); font-weight: 500; transition: all 0.2s; min-height: 48px;
+        }
+        .big-input:focus, .table-select:focus, .form-control:focus { outline: none; border-color: var(--primary); background: #FFF; box-shadow: 0 0 0 4px rgba(156, 131, 106, 0.1); }
+        .big-input { text-align: right; font-size: 1.4em; font-weight: 700; background: #FFF; border-color: var(--border-soft); }
+
+        .table-select { text-align: center; color: var(--primary); background: #FDFCF9; border-width: 2px; font-weight: 700; cursor: pointer; }
+
+        .small-note { font-size: 1em; padding: 12px 16px; width: 100%; border-radius: var(--radius-md); border: 1px solid #E2DED9; box-sizing: border-box; margin-top: 8px; background: var(--bg-body); min-height: 44px; }
+
+        .total-display { font-size: 2.8em; font-weight: 800; color: var(--danger-red); text-align: right; margin: 16px 0; letter-spacing: -1px; }
+
+        .pay-btn {
+            flex: 1; padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-soft);
+            background: var(--bg-body); cursor: pointer; font-weight: 600; font-size: 1.1em;
+            display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; min-height: 48px; color: var(--text-muted);
+        }
+        .pay-btn.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: var(--shadow-float); }
+        .pay-btn:active { transform: scale(0.96); }
+
+        .btn-submit {
+            width: 100%; padding: 16px; background: var(--accent-green); color: white; border: none;
+            border-radius: var(--radius-md); font-weight: 700; font-size: 1.25em; margin-top: 16px;
+            cursor: pointer; box-shadow: 0 8px 20px rgba(90, 143, 105, 0.25); transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 54px;
+        }
+        .btn-submit:active { transform: scale(0.97); box-shadow: none; }
 
         /* Table Dashboard Styles */
-        .table-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; margin-top: 15px; }
-        .t-card { border-radius: 15px; padding: 15px 10px; text-align: center; border: 2px solid #e8e0d9; cursor: pointer; display: flex; flex-direction: column; justify-content: center; min-height: 110px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); transition: transform 0.1s; }
-        .t-card:active { transform: scale(0.95); }
-        .t-empty { background: #fff; color: #a0a0a0; border: 2px dashed #d1c7bc; }
-        .t-green { background: #e6fffa; border-color: #38a169; color: #234e52; }
-        .t-yellow { background: #fffff0; border-color: #d69e2e; color: #744210; }
-        .t-red { background: #fff5f5; border-color: #e53e3e; color: #742a2a; }
-        .t-red-blink { background: #fff5f5; border-color: #e53e3e; color: #742a2a; animation: redBlink 1.5s infinite; }
-        @keyframes redBlink { 0%, 100% { background: #fff5f5; box-shadow: 0 0 0 #e53e3e; } 50% { background: #fed7d7; box-shadow: 0 0 15px rgba(229, 62, 62, 0.6); } }
-        .t-name { font-size: 1.4em; font-weight: bold; margin-bottom: 8px; }
-        .t-time { font-size: 0.9em; font-weight: bold; background: rgba(255,255,255,0.5); padding: 2px 5px; border-radius: 5px; display: inline-block; margin: 0 auto; }
-        .t-items { font-size: 0.8em; margin-top: 8px; opacity: 0.85; }
+        .table-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; margin-top: 12px; }
+        .t-card {
+            border-radius: var(--radius-lg); padding: 16px; text-align: center; border: 1px solid var(--border-soft);
+            cursor: pointer; display: flex; flex-direction: column; justify-content: center;
+            min-height: 120px; box-shadow: var(--shadow-soft); transition: all 0.2s; background: var(--bg-card);
+        }
+        .t-card:active { transform: scale(0.96); }
+        .t-empty { color: var(--text-muted); border: 2px dashed #E2DED9; background: transparent; box-shadow: none; }
+        .t-green { background: #F0FDF4; border-color: #C6F6D5; color: #22543D; }
+        .t-yellow { background: #FFFFF0; border-color: #FEFCBF; color: #744210; }
+        .t-red { background: #FFF5F5; border-color: #FED7D7; color: #742A2A; }
+        .t-red-blink { animation: modernPulse 2s infinite; color: #742A2A; border: 1px solid #FC8181; }
+        @keyframes modernPulse { 0%, 100% { background: #FFF5F5; box-shadow: 0 0 0 0 rgba(252, 129, 129, 0.4); } 50% { background: #FED7D7; box-shadow: 0 0 0 8px rgba(252, 129, 129, 0); } }
 
-        /* Panels / Modals */
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; display: none; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
-        .modal-content { background: white; width: 95%; max-width: 900px; height: 90%; max-height: 800px; border-radius: 15px; display: flex; flex-direction: column; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; animation: slideUp 0.3s ease; box-sizing: border-box; }
-        .modal-small { max-width: 500px; height: auto; max-height: 90vh; }
-        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .t-name { font-size: 1.3em; font-weight: 700; margin-bottom: 8px; }
+        .t-time { font-size: 0.9em; font-weight: 600; background: rgba(255,255,255,0.7); padding: 4px 8px; border-radius: var(--radius-pill); display: inline-flex; align-items: center; gap: 4px; margin: 0 auto; }
+        .t-items { font-size: 0.85em; margin-top: 12px; font-weight: 500; display: flex; flex-direction: column; gap: 4px;}
 
-        .admin-layout { display: grid; grid-template-columns: 1.5fr 1fr; gap: 15px; flex: 1; overflow: hidden; }
-        .admin-actions { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+        /* Panels / Modals (Modernized & z-index Fixed to 15000) */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(30, 26, 24, 0.4); z-index: 15000;
+            display: none; justify-content: center; align-items: center; backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px); padding: 20px; box-sizing: border-box;
+        }
+        .modal-content {
+            background: var(--bg-body); width: 100%; max-width: 900px; height: 90%; max-height: 800px;
+            border-radius: var(--radius-lg); display: flex; flex-direction: column; padding: 24px;
+            box-shadow: 0 24px 48px rgba(0,0,0,0.15); position: relative; animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); box-sizing: border-box;
+        }
+        .modal-small { max-width: 520px; height: auto; max-height: 90vh; }
+        @keyframes modalFadeIn { from { transform: translateY(20px) scale(0.98); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
 
-        .admin-table-container { overflow: auto; border: 1px solid #eee; border-radius: 8px; }
+        .modal-header-modern { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-soft); padding-bottom: 16px; flex-shrink: 0; }
+        .modal-header-modern h2 { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.4em; color: var(--text-main); }
+        .close-icon-btn { background: transparent; border: none; font-size: 1.5em; color: var(--text-muted); cursor: pointer; padding: 8px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-full); transition: 0.2s; }
+        .close-icon-btn:hover { background: var(--border-soft); color: var(--text-main); }
+        .close-icon-btn:active { transform: scale(0.9); }
+
+        .admin-layout { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; flex: 1; overflow: hidden; }
+        .admin-actions { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+
+        .admin-table-container { overflow: auto; border: 1px solid var(--border-soft); border-radius: var(--radius-md); background: white; }
         table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        th { background: #f4f4f4; position: sticky; top: 0; padding: 10px; border: 1px solid #ddd; z-index: 5; }
-        td { padding: 8px; border: 1px solid #ddd; text-align: center; }
-        .del-x { color: red; font-weight: bold; cursor: pointer; font-size: 1.4em; }
+        th { background: #F2EFEA; position: sticky; top: 0; padding: 14px; border-bottom: 1px solid var(--border-soft); z-index: 5; font-weight: 600; color: var(--text-main); text-align: left; }
+        td { padding: 10px 14px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
+        .del-x { color: var(--danger-red); cursor: pointer; font-size: 1.2em; padding: 8px; border-radius: var(--radius-md); transition: 0.2s; display: inline-flex; }
+        .del-x:hover { background: #FFF5F5; }
 
-        /* Beautified Admin Inputs */
-        .admin-table-input { width: 100%; box-sizing: border-box; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 6px; padding: 8px 10px; font-size: 1em; color: #4a5568; transition: all 0.2s; text-align: center; }
-        .admin-table-input:focus { outline: none; border-color: var(--accent-brown); background: #fff; box-shadow: 0 0 0 3px rgba(140, 123, 108, 0.1); }
+        .admin-table-input { width: 100%; box-sizing: border-box; border: 1px solid #E2DED9; background: var(--bg-body); border-radius: 8px; padding: 10px; font-size: 1em; color: var(--text-main); transition: all 0.2s; text-align: center; font-weight: 500;}
+        .admin-table-input:focus { outline: none; border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(156, 131, 106, 0.1); }
         td input[type="text"].admin-table-input { text-align: left; }
 
-        /* Drag and Drop Styles */
-        .drag-handle { cursor: grab; color: #a0aec0; font-size: 1.2em; user-select: none; touch-action: none; padding: 5px; }
-        .drag-handle:active { cursor: grabbing; color: var(--accent-brown); }
-        tr.dragging { opacity: 0.4; background: #fff7ed; }
+        .drag-handle { cursor: grab; color: var(--text-muted); font-size: 1.4em; user-select: none; touch-action: none; padding: 8px; display: inline-flex; }
+        .drag-handle:active { cursor: grabbing; color: var(--primary); }
+        tr.dragging { opacity: 0.5; background: #FDFCF9; }
 
-        /* Form Styles */
-        .form-group { margin-bottom: 12px; }
-        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; }
-        .form-control { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 1em; box-sizing: border-box; }
-        .btn-submit { width: 100%; padding: 12px; background: var(--profit-green); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 1.1em; margin-top: 10px; cursor: pointer; }
+        /* Combo Settings */
+        .combo-config-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border-soft); background: white; border-radius: var(--radius-md); margin-top: 10px; padding: 16px; }
+        .combo-cols { display: flex; flex: 1; gap: 16px; overflow: hidden; margin-top: 12px; }
+        .combo-group-list { width: 35%; overflow-y: auto; padding-right: 8px; }
+        .combo-item-pool { flex: 1; overflow-y: auto; padding-left: 8px; border-left: 1px solid var(--border-soft); }
+        .group-card { padding: 12px 16px; border: 1px solid var(--border-soft); border-radius: var(--radius-md); margin-bottom: 10px; cursor: pointer; background: var(--bg-body); transition: 0.2s; }
+        .group-card.active { border-color: var(--primary); background: #FDFCF9; box-shadow: 0 2px 8px rgba(156, 131, 106, 0.15); }
 
-        /* Combo Config Styles */
-        .combo-config-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; border: 2px dashed #ddd; border-radius: 8px; margin-top: 10px; padding: 10px; }
-        .combo-cols { display: flex; flex: 1; gap: 10px; overflow: hidden; }
-        .combo-group-list { width: 35%; overflow-y: auto; border-right: 1px solid #eee; padding-right: 5px; }
-        .combo-item-pool { flex: 1; overflow-y: auto; padding-left: 5px; }
-        .group-card { padding: 10px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 8px; cursor: pointer; background: #fff; transition: 0.2s; }
-        .group-card.active { border-color: var(--accent-brown); background: #fdf5f0; border-left: 5px solid var(--accent-brown); }
+        .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+        .check-item { display: flex; align-items: center; padding: 12px; border: 1px solid var(--border-soft); background: var(--bg-body); border-radius: var(--radius-md); cursor: pointer; font-size: 0.95em; font-weight: 500; transition: 0.2s;}
+        .check-item:hover { border-color: var(--primary); }
+        .check-item input { margin-right: 10px; width: 18px; height: 18px; accent-color: var(--primary); }
 
-        /* Checkbox list styles */
-        .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
-        .check-item { display: flex; align-items: center; padding: 8px; border: 1px solid #eee; border-radius: 6px; cursor: pointer; font-size: 0.9em; }
-        .check-item:hover { background: #f9f9f9; }
-        .check-item input { margin-right: 8px; transform: scale(1.2); }
+        /* Combo Selection Modal UI (Modernized Touch Buttons) */
+        .combo-select-step { margin-bottom: 16px; border: 1px solid var(--border-soft); padding: 16px; border-radius: var(--radius-lg); background: var(--bg-body); }
+        .combo-step-title { font-weight: 700; margin-bottom: 12px; color: var(--primary); font-size: 1.1em; display: flex; align-items: center; gap: 8px;}
+        .combo-option {
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 10px 20px; border: 2px solid var(--border-soft);
+            border-radius: var(--radius-pill); cursor: pointer; background: var(--bg-card);
+            font-weight: 600; font-size: 1.05em; transition: all 0.2s; min-height: 44px; color: var(--text-main);
+            user-select: none; -webkit-tap-highlight-color: transparent;
+        }
+        .combo-option.selected {
+            background: var(--primary); color: white; border-color: var(--primary);
+            box-shadow: var(--shadow-float);
+        }
+        .combo-option:active { transform: scale(0.96); }
+        .combo-option.disabled { opacity: 0.5; background: var(--bg-body); cursor: not-allowed; pointer-events: none; }
 
         /* History Items */
-        .history-card { background: #fdfdfd; border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-bottom: 10px; position: relative; }
-        .history-del-btn { position: absolute; top: 10px; right: 10px; color: red; cursor: pointer; font-weight: bold; border: 1px solid red; padding: 2px 5px; border-radius: 4px; font-size: 0.8em; }
+        .history-card { background: white; border: 1px solid var(--border-soft); padding: 16px 100px 16px 16px; border-radius: var(--radius-md); margin-bottom: 12px; position: relative; box-shadow: var(--shadow-sm); }
+        .history-del-btn { position: absolute; top: 16px; right: 16px; color: var(--danger-red); cursor: pointer; font-weight: 600; border: 1px solid #FED7D7; padding: 6px 12px; border-radius: 8px; font-size: 0.85em; background: #FFF5F5; display: flex; align-items: center; gap: 4px; transition: 0.2s;}
+        .history-del-btn:active { transform: scale(0.95); }
 
-        /* Combo Customer Modal Styles */
-        .combo-select-step { margin-bottom: 15px; border: 1px solid #eee; padding: 10px; border-radius: 8px; }
-        .combo-step-title { font-weight: bold; margin-bottom: 8px; background: #f9f9f9; padding: 5px; border-radius: 4px; }
-        .combo-option { display: inline-block; margin: 5px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 20px; cursor: pointer; background: white; }
-        .combo-option.selected { background: var(--accent-brown); color: white; border-color: var(--accent-brown); }
-        .combo-option.disabled { opacity: 0.5; background: #eee; cursor: not-allowed; }
-
-        /* Beautified Setting Button */
         .btn-setting {
-            background: var(--accent-brown); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.9em; font-weight: bold; transition: all 0.2s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.1); white-space: nowrap;
+            background: var(--bg-body); color: var(--text-main); border: 1px solid var(--border-soft); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.9em; font-weight: 600; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; min-height: 38px;
         }
-        .btn-setting:hover { background: #7a6a5d; transform: translateY(-1px); box-shadow: 0 4px 6px rgba(0,0,0,0.15); }
-        .btn-setting:active { transform: translateY(0); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .btn-setting:active { transform: scale(0.96); background: var(--border-soft); }
 
-        /* 修正 SweetAlert2 修改 body 高度導致 Flexbox 跑版的問題 */
-        .swal2-container { z-index: 20000 !important; }
+        /* Bottom Controls (Desktop) */
+        .bottom-controls { padding: 16px; display: flex; justify-content: center; gap: 16px; flex-shrink: 0; background: var(--bg-body); border-top: 1px solid var(--border-soft); }
+        .ctrl-btn { padding: 14px 24px; border-radius: var(--radius-pill); font-weight: 600; font-size: 1.1em; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; min-height: 48px; border: none;}
+        .ctrl-btn.outline { background: white; color: var(--text-main); border: 1px solid var(--border-soft); box-shadow: var(--shadow-sm); }
+        .ctrl-btn.primary { background: var(--primary); color: white; box-shadow: var(--shadow-float); }
+        .ctrl-btn:active { transform: scale(0.96); }
+
+        /* SweetAlert2 & Notyf Fixes (Z-index 強化防擋) */
+        div.swal2-container { z-index: 100000 !important; font-family: var(--font-family); }
+        .swal2-popup { border-radius: 24px !important; }
         html.swal2-height-auto, body.swal2-height-auto { height: 100vh !important; }
         body.swal2-shown { padding-right: 0 !important; overflow: hidden !important; }
 
         /* Refined Login Overlay Styles */
         #login-overlay {
-            position: fixed; inset: 0;
-            background: linear-gradient(135deg, #d3cbb8 0%, #b0a496 100%);
-            z-index: 10000;
+            position: fixed; inset: 0; background: var(--bg-body); z-index: 10000;
             display: flex; justify-content: center; align-items: center;
-            backdrop-filter: blur(5px);
         }
         .login-card-ui {
-            background: rgba(255, 255, 255, 0.95); padding: 40px 30px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.5) inset; text-align: center; width: 90%; max-width: 400px; box-sizing: border-box; animation: fadeIn 0.5s ease-out;
+            background: white; padding: 40px 32px; border-radius: 24px;
+            box-shadow: var(--shadow-float); text-align: center; width: 90%; max-width: 380px;
+            box-sizing: border-box; border: 1px solid var(--border-soft);
         }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .login-card-ui h2 { margin-top: 0; color: #4a4036; margin-bottom: 30px; font-size: 1.8em; font-weight: 800; letter-spacing: 1px; }
-        .login-input-wrapper { position: relative; margin-bottom: 20px; }
-        .login-card-ui .big-input { width: 100%; padding: 15px; font-size: 1.2em; border: 2px solid #e0d8d0; border-radius: 12px; background: #fff; color: #5d5246; transition: all 0.3s ease; text-align: center; letter-spacing: 2px; }
-        .login-card-ui .big-input:focus { border-color: var(--accent-brown); box-shadow: 0 0 0 4px rgba(140, 123, 108, 0.1); outline: none; }
-        .login-card-ui .big-input::placeholder { text-align: center; color: #bcaaa4; letter-spacing: normal; }
-        .login-card-ui .btn-submit { background: var(--accent-brown); padding: 15px; font-size: 1.2em; border-radius: 12px; transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(140, 123, 108, 0.2); }
-        .login-card-ui .btn-submit:hover { background: #7a6a5d; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(140, 123, 108, 0.3); }
-        .login-card-ui .btn-submit:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(140, 123, 108, 0.2); }
+        .login-card-ui h2 { margin-top: 0; color: var(--text-main); margin-bottom: 24px; font-size: 1.6em; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+        .login-input-wrapper { position: relative; margin-bottom: 20px; width: 100%; }
+
+        .login-input {
+            width: 100%;
+            padding: 16px;
+            font-size: 1.5em;
+            border: 2px solid var(--border-soft);
+            border-radius: 12px;
+            background: #fff;
+            color: var(--text-main);
+            transition: all 0.3s ease;
+            text-align: center;
+            letter-spacing: 8px;
+            box-sizing: border-box;
+            font-weight: 700;
+        }
+        .login-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(156, 131, 106, 0.15);
+            outline: none;
+        }
+        .login-input::placeholder {
+            text-align: center;
+            color: #bcaaa4;
+            letter-spacing: normal;
+            font-size: 0.7em;
+            font-weight: 500;
+        }
+
+        .login-card-ui .btn-submit {
+            background: var(--primary);
+            color: #fff;
+            padding: 16px;
+            font-size: 1.2em;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-float);
+            border: none;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .login-card-ui .btn-submit:hover { background: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 6px 12px rgba(156, 131, 106, 0.3); }
+        .login-card-ui .btn-submit:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(156, 131, 106, 0.2); }
 
         /* ==========================================================
-           Notyf Toast 客製化 UI/UX 樣式 (柔和、流暢、緊湊膠囊狀、畫面正中央)
+           Notyf Toast 客製化 UI/UX 樣式
            ========================================================== */
-        .notyf { z-index: 99999 !important; top: 50% !important; bottom: auto !important; transform: translateY(-50%) !important; align-items: center !important; justify-content: center !important; pointer-events: none; }
-        .notyf__toast { border-radius: 50px !important; padding: 8px 24px !important; box-shadow: 0 6px 18px rgba(0,0,0,0.12) !important; max-width: 90vw !important; min-height: auto !important; align-items: center !important; pointer-events: auto; }
+        .notyf { z-index: 100000 !important; top: 50% !important; bottom: auto !important; transform: translateY(-50%) !important; align-items: center !important; justify-content: center !important; pointer-events: none; font-family: var(--font-family); }
+        .notyf__toast { border-radius: var(--radius-pill) !important; padding: 12px 24px !important; box-shadow: var(--shadow-float) !important; max-width: 90vw !important; min-height: auto !important; align-items: center !important; pointer-events: auto; }
         .notyf__wrapper { padding: 0 !important; display: flex !important; justify-content: center !important; align-items: center !important; }
-        .notyf__message { font-size: 1.05em !important; font-weight: 600 !important; letter-spacing: 0.5px; padding: 0 !important; text-align: center !important; line-height: 1.4 !important; color: #ffffff !important; }
-        @keyframes notyf-fadeinup-spring { 0% { opacity: 0; transform: translateY(-20px) scale(0.9); } 60% { opacity: 1; transform: translateY(3px) scale(1.02); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
-        .notyf__toast--in { animation: notyf-fadeinup-spring 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important; }
+        .notyf__message { font-size: 1.05em !important; font-weight: 600 !important; padding: 0 !important; text-align: center !important; color: #ffffff !important; }
 
-        /* RWD Media Queries */
+        /* Table Items Status UI */
+        .td-item-row { padding: 14px 12px; border-bottom: 1px solid var(--border-soft); display: flex; justify-content: space-between; align-items: center; transition: 0.3s; background: white; border-radius: 8px; margin-bottom: 6px; }
+        .td-item-row.is-served { opacity: 0.5; background: transparent; border-color: transparent; }
+        .td-item-right { display: flex; align-items: center; gap: 16px; }
+        .serve-cb-wrapper { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 14px; background: var(--bg-body); border-radius: var(--radius-pill); border: 1px solid #E2DED9; user-select: none; transition: 0.2s; font-weight: 600; min-height: 40px;}
+        .serve-cb { width: 20px; height: 20px; accent-color: var(--accent-green); cursor: pointer; margin: 0; }
+        .serve-cb-wrapper.served { border-color: var(--accent-green); background: #F0FDF4; color: var(--accent-green); }
+
+        /* iPhone 專屬的底部懸浮結帳列 (Sticky Summary Bar) */
+        .mobile-cart-summary {
+            display: none; position: fixed; bottom: 20px; left: 16px; right: 16px;
+            background: var(--primary); color: white; padding: 16px 24px;
+            border-radius: var(--radius-pill); box-shadow: 0 12px 28px rgba(156, 131, 106, 0.4);
+            z-index: 4000; justify-content: space-between; align-items: center;
+            font-weight: 700; font-size: 1.15em; cursor: pointer; transition: transform 0.2s;
+        }
+        .mobile-cart-summary:active { transform: scale(0.96); }
+        .mobile-cart-summary .qty-badge { background: white; color: var(--primary); padding: 2px 8px; border-radius: 12px; font-size: 0.9em; margin-left: 8px; }
+
+        /* --- 針對窄螢幕 (iPhone) 的 RWD 優化 --- */
         @media (max-width: 768px) {
-            .main-content { flex-direction: column; }
-            .left-pane { flex: 1; max-height: 40vh; }
-            .checkout-area { flex: 1; min-width: 100%; max-height: 50vh; }
+            .main-content { padding: 12px; padding-bottom: 100px; /* 留空間給懸浮列 */ flex-direction: column; overflow-y: auto;}
+
+            /* 左側商品/桌況在手機上自然向下排 */
+            .left-pane { flex: none; overflow: visible; background: transparent; border: none; }
+            .item-area { padding: 0; overflow: visible; }
+            .table-area { padding: 0; overflow: visible; background: transparent; }
+
+            /* Grid 調整 */
+            .product-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+            .table-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+
+            /* 重點：將右側結帳區改為底部抽屜 (Bottom Sheet) */
+            .checkout-area {
+                position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 5000;
+                backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+                display: flex; flex-direction: column; justify-content: flex-end;
+                opacity: 0; pointer-events: none; transition: opacity 0.3s;
+                /* 隱藏原有樣式 */ max-width: none; min-width: 0; padding: 0; gap: 0;
+            }
+            .checkout-area.is-open { opacity: 1; pointer-events: auto; }
+
+            /* 讓 Card 變成抽屜本體 */
+            .checkout-area > .card {
+                background: var(--bg-body); border-radius: 24px 24px 0 0; margin: 0;
+                border: none; padding: 20px; max-height: 85vh; overflow-y: auto;
+                transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            }
+            .checkout-area.is-open > .card { transform: translateY(0); }
+
+            /* 在抽屜頂部加入關閉把手與按鈕 */
+            .mobile-drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+            .mobile-drawer-handle { width: 40px; height: 4px; background: #D9D9D9; border-radius: 4px; margin: 0 auto 16px; }
+
+            .mobile-cart-summary { display: flex; }
+
+            /* 隱藏桌面版的 今日紀錄，手機版在抽屜內可選示，或直接隱藏讓畫面單純 */
+            #log-card-container { display: none; }
+
+            /* 模態框手機版改為 Bottom Sheet */
+            .modal-overlay { align-items: flex-end; padding: 0; }
+            .modal-content { border-radius: 24px 24px 0 0; margin: 0; max-height: 90vh; animation: slideUpMobile 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); padding: 20px;}
+            @keyframes slideUpMobile { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
             .admin-layout { grid-template-columns: 1fr; }
-            .product-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
-            .table-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
-            .big-input { font-size: 1.4em; padding: 8px; }
-            .table-select { font-size: 1.2em; padding: 8px; }
-            .total-display { font-size: 2.2em; margin: 5px 0; }
-            .modal-content { width: 100%; height: 100%; max-height: 100%; border-radius: 0; padding: 15px; }
-            .combo-cols { flex-direction: column; }
-            .combo-group-list { width: 100%; height: 150px; border-right: none; border-bottom: 1px solid #eee; }
-            .combo-item-pool { height: 100%; }
-            .checkbox-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
-            .modal-small { height: auto; max-height: 90vh; border-radius: 15px; width: 90%; }
-            .admin-table-input { min-width: 60px; font-size: 0.9em; padding: 6px; }
-            td input[type="text"].admin-table-input { min-width: 120px; }
+            .bottom-controls { flex-direction: column; padding: 12px; }
+
+            /* 表格與列表微調 */
+            .td-item-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .td-item-right { width: 100%; justify-content: space-between; padding-top: 8px; border-top: 1px dashed var(--border-soft); }
+
+            /* Table Dashboard RWD adjustments */
+            .t-card { padding: 10px 5px; min-height: 90px; }
+            .t-name { font-size: 1.15em; margin-bottom: 4px; }
+            .t-time { font-size: 0.75em; padding: 2px 4px; }
+            .t-items { font-size: 0.75em; margin-top: 6px; }
+
+            /* History Item RWD adjustments */
+            .history-card { padding: 10px 80px 10px 10px; }
+            .history-del-btn { top: 10px; right: 10px; padding: 4px 6px; font-size: 0.75em; }
+
             .login-card-ui { padding: 30px 20px; }
             .login-card-ui h2 { font-size: 1.5em; }
-            .login-card-ui .big-input { font-size: 1.1em; padding: 12px; }
-            .login-card-ui .btn-submit { font-size: 1.1em; padding: 12px; }
-            .notyf__toast { padding: 8px 16px !important; }
-            .notyf__message { font-size: 0.95em !important; }
+            .login-input { font-size: 1.3em; padding: 14px; letter-spacing: 6px; }
+            .login-card-ui .btn-submit { font-size: 1.1em; padding: 14px; }
         }
+
+        /* 桌面端隱藏手機抽屜頭部 */
+        @media (min-width: 769px) { .mobile-drawer-header { display: none; } }
+
     </style>
 </head>
 <body>
@@ -225,142 +455,160 @@
 <!-- 登入覆蓋層 -->
 <div id="login-overlay">
     <div class="login-card-ui">
-        <h2>🍵 御品泡茶體驗</h2>
+        <h2><i class="ph-fill ph-leaf"></i> 御品泡茶</h2>
         <div class="login-input-wrapper">
-            <input type="password" id="login-pwd-input" class="big-input" placeholder="請輸入密碼" onkeypress="if(event.key==='Enter') checkSystemLogin()">
+            <input type="password" id="login-pwd-input" class="login-input" placeholder="請輸入密碼" onkeypress="if(event.key==='Enter') checkSystemLogin()">
         </div>
-        <button onclick="checkSystemLogin()" class="btn-submit">進入系統</button>
+        <button onclick="checkSystemLogin()" class="btn-submit"><i class="ph-bold ph-sign-in"></i> 進入系統</button>
     </div>
 </div>
 
-<header onclick="handleHeaderSecretClick()">🍵 御品泡茶體驗</header>
+<header onclick="handleHeaderSecretClick()"><i class="ph-fill ph-leaf"></i> 御品泡茶體驗</header>
 <div class="nav-bar">
-    <!-- 新增門市桌況按鈕 -->
-    <button class="dash-btn" onclick="toggleView('tables')">🪑 門市桌況</button>
-    <div id="navbar" style="display:flex; gap:10px;"></div>
-    <button id="sync-btn" class="sync-btn" onclick="syncOfflineData()">☁️ 雲端同步</button>
+    <button id="btn-nav-menu" class="dash-btn" onclick="toggleView('products')" style="background:var(--primary); color:white; border:none;"><i class="ph-bold ph-list"></i> 主選單</button>
+    <button id="btn-nav-tables" class="dash-btn" onclick="toggleView('tables')" style="background:var(--bg-card); color:var(--text-main); border:1px solid var(--border-soft);"><i class="ph-bold ph-armchair"></i> 門市桌況</button>
+    <div style="flex:1;"></div>
+    <button id="sync-btn" class="sync-btn" onclick="syncOfflineData()"><i class="ph-bold ph-cloud-arrow-up"></i> 雲端同步</button>
 </div>
 
 <div class="main-content">
-    <!-- 左側顯示區：可切換商品或桌況 -->
+    <!-- 左側顯示區 (商品/桌況) -->
     <div class="left-pane">
         <div class="item-area" id="item-area">同步中...</div>
         <div class="table-area" id="table-area"></div>
     </div>
 
-    <div class="checkout-area">
-        <div class="card" style="flex:1;">
-            <strong>🛒 當前清單</strong>
-            <!-- 新增強制桌號選擇 -->
-            <select id="checkout-table" class="table-select">
-                <!-- 透過 JS 初始化選項 -->
-            </select>
+    <!-- 右側結帳區 (手機版為底部抽屜) -->
+    <div class="checkout-area" id="checkout-drawer">
+        <!-- 點擊背景關閉抽屜 (僅手機版生效) -->
+        <div style="flex:1;" onclick="toggleMobileCart(false)"></div>
+
+        <div class="card" style="flex-shrink: 0;" onclick="event.stopPropagation()">
+            <div class="mobile-drawer-handle"></div>
+            <div class="mobile-drawer-header">
+                <span style="font-size: 1.2em; font-weight: 700;"><i class="ph-bold ph-shopping-cart"></i> 購物車結帳</span>
+                <button class="close-icon-btn" onclick="toggleMobileCart(false)"><i class="ph ph-x"></i></button>
+            </div>
+
+            <div class="card-header-title" style="display: none /* 桌面用自訂title，已融合 */">🛒 當前清單</div>
+
+            <select id="checkout-table" class="table-select"></select>
 
             <div id="cart-list"></div>
-            <div style="margin-top:10px; flex-shrink: 0;">
-                <input type="number" id="discount" class="big-input" placeholder="折扣金額" oninput="calc()">
+            <div style="margin-top:12px; flex-shrink: 0;">
+                <input type="number" id="discount" class="big-input" placeholder="折扣金額" oninput="calc()" style="font-size: 1.2em; text-align: left;">
                 <input type="text" id="discount-note" class="small-note" placeholder="折扣原因/備註 (例如: 滿額贈)">
-                <div style="margin-top:5px; display:flex; gap:5px;">
-                    <button onclick="addExtraCost()" style="flex:1; padding:8px; background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; border-radius:8px; cursor:pointer; font-size:0.9em; font-weight:bold;">➕ 紀錄額外支出</button>
+                <div style="margin-top:8px; display:flex; gap:8px;">
+                    <button onclick="addExtraCost()" style="flex:1; padding:12px; background:#FFF5F5; border:1px solid #FED7D7; color:var(--danger-red); border-radius:10px; cursor:pointer; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px;"><i class="ph-bold ph-plus-circle"></i> 紀錄額外支出</button>
                 </div>
             </div>
             <div class="total-display" style="flex-shrink: 0;">$<span id="final-total">0</span></div>
-            <div style="display:flex; gap:8px; margin-bottom:10px; flex-shrink: 0;">
-                <button class="pay-btn active" id="btn-cash" onclick="setPay('現金')">💵 現金</button>
-                <button class="pay-btn" id="btn-elec" onclick="setPay('電支')">📱 電支</button>
+            <div style="display:flex; gap:10px; margin-bottom:12px; flex-shrink: 0;">
+                <button class="pay-btn active" id="btn-cash" onclick="setPay('現金')"><i class="ph-bold ph-money"></i> 現金</button>
+                <button class="pay-btn" id="btn-elec" onclick="setPay('電支')"><i class="ph-bold ph-device-mobile"></i> 電支</button>
             </div>
-            <input type="number" id="cash-in" class="big-input" placeholder="實收金額" oninput="calcChange()" style="flex-shrink: 0;">
-            <div style="text-align:right; margin-top:5px; font-size: 1.3em; flex-shrink: 0;">找零: <span id="cash-change" style="font-weight:bold; color:red; font-size:1.8em;">0</span></div>
+            <input type="number" id="cash-in" class="big-input" placeholder="實收金額" oninput="calcChange()" style="flex-shrink: 0; font-size: 1.4em;">
+            <div style="text-align:right; margin-top:8px; font-size: 1.2em; flex-shrink: 0; font-weight: 600;">找零: <span id="cash-change" style="font-weight:800; color:var(--danger-red); font-size:1.6em;">0</span></div>
 
-            <div style="margin: 10px 0; padding: 10px; background: #fff5eb; border-radius: 10px; border: 1px dashed var(--main-brown); flex-shrink: 0;">
-                <label style="font-size: 0.9em; cursor: pointer;">
-                    <input type="checkbox" id="backdate-mode" onclick="document.getElementById('manual-date').style.display = this.checked ? 'inline-block' : 'none'">
-                    📅 補登過去日期資料
+            <div style="margin: 12px 0; padding: 12px; background: #FDFCF9; border-radius: 12px; border: 1px dashed var(--primary); flex-shrink: 0;">
+                <label style="font-size: 0.95em; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 500;">
+                    <input type="checkbox" id="backdate-mode" onclick="document.getElementById('manual-date').style.display = this.checked ? 'block' : 'none'" style="width:18px; height:18px; accent-color:var(--primary);">
+                    <i class="ph-bold ph-calendar-blank"></i> 補登過去日期資料
                 </label>
-                <input type="date" id="manual-date" style="display:none; margin-left:10px; padding:5px; border:1px solid #ccc; border-radius:5px;">
+                <input type="date" id="manual-date" class="form-control" style="display:none; margin-top:8px;">
             </div>
 
-            <button onclick="submitOrder()" style="width:100%; padding:20px; margin-top:15px; background:var(--profit-green); color:white; border:none; border-radius:15px; font-weight:bold; font-size:1.6em; flex-shrink: 0;">結帳 / 送單</button>
+            <button onclick="submitOrder()" class="btn-submit">結帳 / 送單 <i class="ph-bold ph-paper-plane-right"></i></button>
         </div>
-        <div class="card" style="font-size: 1em; overflow-y: auto; height: 150px; flex-shrink: 0;">
-            <strong>📋 今日即時紀錄</strong>
+
+        <!-- 桌機版今日紀錄 -->
+        <div class="card" id="log-card-container" style="font-size: 1em; overflow-y: auto; height: 180px; flex-shrink: 0; margin-top: 16px;">
+            <div class="card-header-title"><i class="ph-bold ph-receipt"></i> 今日即時紀錄</div>
             <div id="order-log"></div>
         </div>
     </div>
 </div>
 
-<div style="padding:15px; text-align:center; display: flex; justify-content: center; gap: 15px; flex-shrink: 0;">
-    <button onclick="openModal('admin-panel')" style="padding:15px 25px; border-radius:15px; background:white; border:3px solid var(--main-brown); font-weight:bold; font-size:1.1em; cursor:pointer;">🛠️ 商品管理 / 統計</button>
-    <button onclick="openHistoryPanel()" style="padding:15px 25px; border-radius:15px; background:var(--accent-brown); color:white; border:none; font-weight:bold; font-size:1.1em; cursor:pointer;">📜 歷史紀錄 / 退貨</button>
+<!-- 手機版專屬底部懸浮列 -->
+<div class="mobile-cart-summary" onclick="toggleMobileCart(true)">
+    <div style="display:flex; align-items:center; gap:8px;">
+        <i class="ph-bold ph-shopping-cart" style="font-size: 1.3em;"></i> 購物車 <span class="qty-badge" id="mobile-cart-count">0</span>
+    </div>
+    <div>$<span id="mobile-cart-total">0</span></div>
+</div>
+
+<!-- 底部系統管理區 -->
+<div class="bottom-controls">
+    <button class="ctrl-btn outline" onclick="openModal('admin-panel')"><i class="ph-bold ph-gear"></i> 商品管理 / 統計</button>
+    <button class="ctrl-btn primary" onclick="openHistoryPanel()"><i class="ph-bold ph-clock-counter-clockwise"></i> 歷史紀錄 / 退貨</button>
 </div>
 
 <!-- 桌況明細 Modal -->
 <div id="table-details-modal" class="modal-overlay">
     <div class="modal-content modal-small">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px; flex-shrink:0;">
-            <h2 style="margin:0;" id="td-modal-title">🪑 桌況明細</h2>
-            <button onclick="closeModal('table-details-modal')" style="font-size:1.5em; border:none; background:none; cursor:pointer;">✕</button>
+        <div class="modal-header-modern">
+            <h2 id="td-modal-title"><i class="ph-fill ph-armchair"></i> 桌況明細</h2>
+            <button class="close-icon-btn" onclick="closeModal('table-details-modal')"><i class="ph ph-x"></i></button>
         </div>
-        <div id="td-modal-info" style="background:#fdf5f0; padding:10px; border-radius:8px; font-weight:bold; margin-bottom:10px; flex-shrink:0;"></div>
-        <div id="td-modal-items" style="flex:1; overflow-y:auto; border:1px solid #eee; border-radius:8px; padding:10px; background:#fafafa;"></div>
-        <button id="td-modal-clear-btn" style="width:100%; padding:15px; background:#e53e3e; color:white; border:none; border-radius:10px; font-size:1.2em; font-weight:bold; margin-top:15px; flex-shrink:0; cursor:pointer;">🧹 清除桌面 (客離)</button>
+        <div id="td-modal-info" style="background:#FDFCF9; padding:16px; border-radius:12px; font-weight:600; margin-bottom:12px; flex-shrink:0; border:1px solid var(--border-soft);"></div>
+        <div id="td-modal-items" style="flex:1; overflow-y:auto; border-radius:12px; background:var(--bg-body); padding: 8px;"></div>
+        <button id="td-modal-clear-btn" class="btn-submit" style="background:var(--danger-red); margin-top:16px;"><i class="ph-bold ph-broom"></i> 清除桌面 (客離)</button>
     </div>
 </div>
 
 <!-- History Modal -->
 <div id="history-panel" class="modal-overlay">
     <div class="modal-content">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-shrink:0;">
-            <h2 style="margin:0;">📜 歷史紀錄管理</h2>
-            <button onclick="closeModal('history-panel')" style="font-size:1.5em; border:none; background:none; cursor:pointer;">✕</button>
+        <div class="modal-header-modern">
+            <h2><i class="ph-bold ph-clock-counter-clockwise"></i> 歷史紀錄管理</h2>
+            <button class="close-icon-btn" onclick="closeModal('history-panel')"><i class="ph ph-x"></i></button>
         </div>
-        <div style="background:#fdf5f0; padding:15px; border-radius:10px; margin-bottom:15px; display:flex; gap:15px; align-items:center; flex-wrap:wrap; flex-shrink:0;">
-            <div>
-                <label>單日：</label><input type="date" id="search-date" style="padding:8px;">
-                <button onclick="searchHistory('day')" style="padding:8px 15px; background:var(--main-brown); color:white; border:none; border-radius:5px;">🔍 查詢</button>
+        <div style="background:#FDFCF9; padding:16px; border-radius:12px; margin-bottom:16px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; border:1px solid var(--border-soft);">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <input type="date" id="search-date" class="form-control" style="min-height:40px; padding:8px 12px; width:auto;">
+                <button onclick="searchHistory('day')" class="dash-btn" style="min-height:40px;"><i class="ph-bold ph-magnifying-glass"></i> 查詢</button>
             </div>
-            <div style="border-left: 2px solid #ddd; padding-left: 15px;">
-                <label>當月：</label><input type="month" id="search-month" style="padding:8px;">
-                <button onclick="searchHistory('month')" style="padding:8px 15px; background:var(--accent-brown); color:white; border:none; border-radius:5px;">📊 統計</button>
+            <div style="border-left: 2px solid var(--border-soft); padding-left: 16px; display:flex; align-items:center; gap:8px;">
+                <input type="month" id="search-month" class="form-control" style="min-height:40px; padding:8px 12px; width:auto;">
+                <button onclick="searchHistory('month')" class="dash-btn" style="background:var(--accent-green); min-height:40px;"><i class="ph-bold ph-chart-bar"></i> 統計</button>
             </div>
         </div>
-        <div id="history-result-area" style="flex:1; overflow-y:auto; background:white; padding:15px; border-radius:10px; border:1px solid #eee;"></div>
+        <div id="history-result-area" style="flex:1; overflow-y:auto; background:white; padding:16px; border-radius:12px; border:1px solid var(--border-soft);"></div>
     </div>
 </div>
 
 <!-- Admin Modal (Main) -->
 <div id="admin-panel" class="modal-overlay">
     <div class="modal-content">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-shrink:0;">
-            <h2 style="margin:0;">⚙️ 管理中心</h2>
-            <div style="display:flex; gap:10px;">
-                <button onclick="closeModal('admin-panel')" style="font-size:1.5em; border:none; background:none; cursor:pointer;">✕</button>
-            </div>
+        <div class="modal-header-modern">
+            <h2><i class="ph-bold ph-gear"></i> 管理中心</h2>
+            <button class="close-icon-btn" onclick="closeModal('admin-panel')"><i class="ph ph-x"></i></button>
         </div>
 
         <div class="admin-actions">
-            <button onclick="openAddSingleModal()" style="padding:10px 20px; background:#48bb78; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">➕ 新增單品</button>
-            <button onclick="openAddComboModal()" style="padding:10px 20px; background:#ed8936; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">🍱 新增套餐</button>
+            <button onclick="openAddSingleModal()" class="dash-btn" style="background:var(--accent-green);"><i class="ph-bold ph-plus-circle"></i> 新增單品</button>
+            <button onclick="openAddComboModal()" class="dash-btn" style="background:#D97706;"><i class="ph-bold ph-squares-four"></i> 新增套餐</button>
+            <button onclick="setTableCount()" class="dash-btn" style="background:#4A90E2;"><i class="ph-bold ph-hash"></i> 設定桌數</button>
 
-            <div style="margin-left:auto; display:flex; gap:10px;">
-                <button onclick="exportToExcel()" style="padding:8px 15px; background:#217346; color:white; border:none; border-radius:5px;">📥 匯出</button>
-                <button onclick="backupData()" style="padding:8px 15px; background:#666; color:white; border:none; border-radius:5px;">💾 備份</button>
+            <div style="margin-left:auto; display:flex; gap:12px;">
+                <button onclick="exportToExcel()" class="dash-btn" style="background:#2F855A;"><i class="ph-bold ph-download-simple"></i> 匯出</button>
+                <button onclick="backupData()" class="dash-btn" style="background:var(--text-muted);"><i class="ph-bold ph-floppy-disk"></i> 備份</button>
                 <input type="file" id="import-file" style="display:none;" onchange="importData(event)">
-                <button onclick="document.getElementById('import-file').click()" style="padding:8px 15px; background:#d9534f; color:white; border:none; border-radius:5px;">⚠️ 還原</button>
+                <button onclick="document.getElementById('import-file').click()" class="dash-btn" style="background:var(--danger-red);"><i class="ph-bold ph-warning"></i> 還原</button>
             </div>
         </div>
 
         <div class="admin-layout">
             <div class="admin-table-container">
                 <table id="admin-main-table">
-                    <thead><tr><th style="width:40px;"></th><th>類型</th><th>品名</th><th>成本</th><th>售價</th><th>庫存/內容</th><th>刪</th></tr></thead>
+                    <thead><tr><th style="width:40px;"></th><th>品名</th><th>成本</th><th>售價</th><th>庫存/內容</th><th>刪</th></tr></thead>
                     <tbody id="admin-tbody"></tbody>
                 </table>
             </div>
-            <div style="background:#f9f9f9; padding:15px; border-radius:10px; overflow-y:auto; max-height: 400px;">
-                <h3>📊 銷售排名</h3>
-                <table style="font-size:0.9em;">
-                    <thead><tr style="background:#eee;"><th>品名</th><th>量</th><th>額</th></tr></thead>
+            <div style="background:#FDFCF9; padding:20px; border-radius:12px; border:1px solid var(--border-soft); overflow-y:auto; max-height: 400px;">
+                <h3 style="margin-top:0; color:var(--text-main); display:flex; align-items:center; gap:8px;"><i class="ph-bold ph-chart-line-up"></i> 銷售排名</h3>
+                <table style="font-size:0.95em;">
+                    <thead><tr style="background:transparent;"><th style="border-bottom:2px solid #E2DED9;">品名</th><th style="border-bottom:2px solid #E2DED9;">量</th><th style="border-bottom:2px solid #E2DED9;">額</th></tr></thead>
                     <tbody id="stat-tbody"></tbody>
                 </table>
             </div>
@@ -371,8 +619,11 @@
 <!-- Modal: Add Single Product -->
 <div id="modal-single-product" class="modal-overlay">
     <div class="modal-content modal-small">
-        <h2 style="margin-top:0;">➕ 新增單品</h2>
-        <div style="flex:1; overflow-y:auto;">
+        <div class="modal-header-modern">
+            <h2><i class="ph-bold ph-plus-circle"></i> 新增單品</h2>
+            <button class="close-icon-btn" onclick="closeModal('modal-single-product')"><i class="ph ph-x"></i></button>
+        </div>
+        <div style="flex:1; overflow-y:auto; padding-right: 4px;">
             <div class="form-group">
                 <label>商品分類</label>
                 <select id="single-cat" class="form-control" onchange="checkNewCat(this.value, 'single-cat')"></select>
@@ -385,7 +636,7 @@
                 <label>商品名稱</label>
                 <input type="text" id="single-name" class="form-control" placeholder="請輸入名稱">
             </div>
-            <div style="display:flex; gap:10px;">
+            <div style="display:flex; gap:16px;">
                 <div class="form-group" style="flex:1;">
                     <label>成本</label>
                     <input type="number" id="single-cost" class="form-control" value="0">
@@ -400,79 +651,86 @@
                 <input type="number" id="single-stock" class="form-control" value="99">
             </div>
         </div>
-        <div style="display:flex; gap:10px; margin-top:10px;">
-            <button onclick="closeModal('modal-single-product')" style="flex:1; padding:12px; border:1px solid #ccc; background:#fff; border-radius:8px; cursor:pointer;">取消</button>
-            <button onclick="saveSingleProduct()" class="btn-submit" style="flex:1; margin-top:0;">確認新增</button>
-        </div>
+        <button onclick="saveSingleProduct()" class="btn-submit">確認新增</button>
     </div>
 </div>
 
 <!-- Modal: Add Combo Product -->
 <div id="modal-combo-product" class="modal-overlay">
     <div class="modal-content">
-        <h2 style="margin-top:0;">🍱 新增套餐</h2>
+        <div class="modal-header-modern">
+            <h2><i class="ph-bold ph-squares-four"></i> 新增/編輯套餐</h2>
+            <button class="close-icon-btn" onclick="closeModal('modal-combo-product')"><i class="ph ph-x"></i></button>
+        </div>
         <!-- Basic Info -->
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom: 12px;">
             <div style="flex:1; min-width:150px;">
-                <label style="font-size:0.9em; color:#666;">分類</label>
+                <label style="font-size:0.9em; font-weight:600; color:var(--text-muted); margin-bottom:4px; display:block;">分類</label>
                 <select id="combo-cat" class="form-control" onchange="checkNewCat(this.value, 'combo-cat')"></select>
             </div>
             <div style="flex:1; min-width:150px;">
-                <label style="font-size:0.9em; color:#666;">套餐名稱</label>
+                <label style="font-size:0.9em; font-weight:600; color:var(--text-muted); margin-bottom:4px; display:block;">套餐名稱</label>
                 <input type="text" id="combo-name" class="form-control" placeholder="例: 下午茶組合">
             </div>
-            <div style="width:100px;">
-                <label style="font-size:0.9em; color:#666;">售價</label>
+            <div style="width:120px;">
+                <label style="font-size:0.9em; font-weight:600; color:var(--text-muted); margin-bottom:4px; display:block;">售價</label>
                 <input type="number" id="combo-price" class="form-control" value="0">
             </div>
-            <div style="width:80px;">
-                <label style="font-size:0.9em; color:#666;">代碼</label>
+            <div style="width:100px;">
+                <label style="font-size:0.9em; font-weight:600; color:var(--text-muted); margin-bottom:4px; display:block;">代碼</label>
                 <input type="text" id="combo-id" class="form-control">
             </div>
         </div>
 
         <!-- Combo Config -->
         <div class="combo-config-area">
-            <div style="display:flex; gap:10px; margin-bottom:10px; align-items:center; background:#f0fdf4; padding:10px; border-radius:8px;">
-                <strong style="color:#2f855a;">步驟：</strong>
-                <span>1. 輸入群組名稱 (如: 飲品選一) </span>
-                <input type="text" id="combo-group-input" style="padding:5px; border-radius:4px; border:1px solid #ccc;" placeholder="群組名稱...">
-                <button onclick="addComboGroup()" style="background:#48bb78; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">＋ 加入群組</button>
+            <div style="display:flex; gap:10px; margin-bottom:16px; align-items:center; background:#F0FDF4; padding:12px 16px; border-radius:12px; border: 1px solid #C6F6D5;">
+                <strong style="color:#22543D; display:flex; align-items:center; gap:6px;"><i class="ph-fill ph-check-circle"></i> 步驟：</strong>
+                <span style="color:#22543D; font-weight:500;">輸入群組名稱 (如: 飲品選一) </span>
+                <input type="text" id="combo-group-input" class="form-control" style="min-height:36px; padding:6px 12px; width:200px;" placeholder="群組名稱...">
+                <button onclick="addComboGroup()" class="dash-btn" style="background:var(--accent-green); min-height:36px; padding:6px 16px;"><i class="ph-bold ph-plus"></i> 加入群組</button>
             </div>
 
             <div class="combo-cols">
                 <!-- Left: Group List -->
                 <div class="combo-group-list" id="combo-group-list-ui">
-                    <div style="color:#999; text-align:center; padding:20px;">請先新增群組</div>
+                    <div style="color:var(--text-muted); text-align:center; padding:30px; background:var(--bg-body); border-radius:12px;">請先新增群組</div>
                 </div>
 
                 <!-- Right: Product Pool Checkboxes -->
                 <div class="combo-item-pool" id="combo-item-pool-ui">
-                    <div style="color:#999; text-align:center; padding:20px;">點選左側群組後，在此勾選內容</div>
+                    <div style="color:var(--text-muted); text-align:center; padding:30px; background:var(--bg-body); border-radius:12px;">點選左側群組後，在此勾選內容</div>
                 </div>
             </div>
         </div>
 
-        <div style="display:flex; gap:10px; margin-top:10px;">
-            <button onclick="closeModal('modal-combo-product')" style="flex:1; padding:12px; border:1px solid #ccc; background:#fff; border-radius:8px; cursor:pointer;">取消</button>
-            <button onclick="saveComboProduct()" class="btn-submit" style="flex:1; margin-top:0;">完成並新增套餐</button>
-        </div>
+        <button onclick="saveComboProduct()" class="btn-submit">完成並儲存套餐</button>
     </div>
 </div>
 
 <!-- Combo Customer Selection Modal -->
 <div id="combo-select-modal" class="modal-overlay">
     <div class="modal-content modal-small">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px; flex-shrink:0;">
-            <h2 style="margin:0;" id="select-combo-title">選擇套餐內容</h2>
-            <button onclick="closeModal('combo-select-modal')" style="font-size:1.5em; border:none; background:none; cursor:pointer;">✕</button>
+        <div class="modal-header-modern">
+            <h2 id="select-combo-title">選擇套餐內容</h2>
+            <button class="close-icon-btn" onclick="closeModal('combo-select-modal')"><i class="ph ph-x"></i></button>
         </div>
-        <div id="combo-selection-area" style="flex:1; overflow-y:auto;"></div>
-        <button onclick="confirmComboSelection()" style="width:100%; padding:15px; background:var(--main-brown); color:white; border:none; border-radius:10px; font-size:1.2em; font-weight:bold; margin-top:10px; flex-shrink:0;">確認加入清單</button>
+        <div id="combo-selection-area" style="flex:1; overflow-y:auto; padding-right: 4px;"></div>
+        <button onclick="confirmComboSelection()" class="btn-submit"><i class="ph-bold ph-check"></i> 確認加入清單</button>
     </div>
 </div>
 
 <script>
+    // --- 手機版購物車抽屜切換邏輯 ---
+    function toggleMobileCart(show) {
+        const drawer = document.getElementById('checkout-drawer');
+        if (show) {
+            drawer.classList.add('is-open');
+        } else {
+            drawer.classList.remove('is-open');
+        }
+    }
+
     // --- 訊息策略設定 (Notyf 初始化 - 柔和且現代化的配置) ---
     const notyf = new Notyf({
         duration: 1500,
@@ -480,16 +738,8 @@
         dismissible: false,
         ripple: false, // 關閉水波紋，整體感覺更扎實、高級
         types: [
-            {
-                type: 'success',
-                background: '#6FCF97', // 較淺柔和的綠色
-                icon: false // 移除圖示，只顯示純文字
-            },
-            {
-                type: 'error',
-                background: '#FC8181', // 較淺柔和的紅色
-                icon: false // 移除預設的 'x' 圖示，只顯示純文字
-            }
+            { type: 'success', background: '#5A8F69', icon: false },
+            { type: 'error', background: '#D96C6C', icon: false }
         ]
     });
 
@@ -518,17 +768,18 @@
     let cart = [];
     let currentPay = '現金';
 
-    // 定義固定桌位
-    const ALL_TABLES = ['吧台1', '吧台2', '吧台3', '吧台4', '吧台5', '桌位A', '桌位B', '桌位C', '桌位D'];
+    // 定義動態桌位陣列
+    let tableCount = parseInt(localStorage.getItem('yupin_pos_table_count')) || 10;
+    let ALL_TABLES = Array.from({length: tableCount}, (_, i) => (i + 1).toString());
     let activeTables = {}; // 追蹤正在使用中的桌子
 
     const defaultInv = [
-        { cat: "🧸 招牌玩偶", items: [{id: "A01", n: "經典小熊", c: 100, p: 250, s: 10, type: "item"}] },
-        { cat: "☕ 飲品", items: [
+        { cat: "招牌玩偶", items: [{id: "A01", n: "經典小熊", c: 100, p: 250, s: 10, type: "item"}] },
+        { cat: "飲品", items: [
                 {id: "D01", n: "清韻高山烏龍", c: 10, p: 50, s: 100, type: "item"},
                 {id: "D02", n: "雅韻高山烏龍", c: 12, p: 55, s: 100, type: "item"}
             ]},
-        { cat: "🍰 甜點", items: [
+        { cat: "甜點", items: [
                 {id: "C01", n: "提拉米蘇", c: 40, p: 120, s: 50, type: "item"},
                 {id: "C02", n: "巴斯克", c: 35, p: 110, s: 50, type: "item"}
             ]}
@@ -537,7 +788,6 @@
     // --- System Login & Security Logic (Web Crypto Hash + Salt) ---
     const SALT = "YUPIN_POS_SECURE_SALT";
 
-    // 簡易的 SHA-256 雜湊處理 (非同步)
     async function hashPassword(pwd) {
         const msgBuffer = new TextEncoder().encode(pwd + SALT);
         const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -545,7 +795,6 @@
         return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    // 初始化：如果沒有存過密碼，預設為 "1234" 的 Hash
     async function initSystemPassword() {
         let storedHash = localStorage.getItem('yupin_pos_pwd_hash');
         if (!storedHash) {
@@ -555,7 +804,6 @@
     }
     initSystemPassword();
 
-    // 系統載入時強制顯示登入畫面
     document.getElementById('login-overlay').style.display = 'flex';
 
     async function checkSystemLogin() {
@@ -568,14 +816,12 @@
         if (inputHash === storedHash) {
             document.getElementById('login-overlay').style.display = 'none';
             document.getElementById('login-pwd-input').value = '';
-            // 登入成功後才載入資料，避免畫面提早渲染
             if (inv.length === 0) loadData();
         } else {
             notyf.error('密碼不正確');
         }
     }
 
-    // 連點五次標題觸發改密碼
     let headerClickCount = 0;
     let headerClickTimer = null;
     function handleHeaderSecretClick() {
@@ -611,7 +857,7 @@
 
     // --- Core Data Logic ---
     function loadData() {
-        initTableSelect(); // 初始化結帳區的桌號選單
+        initTableSelect();
 
         if(isOnline) {
             db.ref('inventory').on('value', snap => {
@@ -629,6 +875,18 @@
                 activeTables = snap.val() || {};
                 renderTableDashboard();
             });
+            // 同步遠端桌數設定
+            db.ref('table_count').on('value', snap => {
+                if(snap.exists()) {
+                    tableCount = snap.val();
+                    localStorage.setItem('yupin_pos_table_count', tableCount);
+                    ALL_TABLES = Array.from({length: tableCount}, (_, i) => (i + 1).toString());
+                    initTableSelect();
+                    if(document.getElementById('table-area').style.display !== 'none') {
+                        renderTableDashboard();
+                    }
+                }
+            });
         } else {
             inv = defaultInv;
             activeTables = JSON.parse(localStorage.getItem('yupin_pos_active_tables') || '{}');
@@ -638,22 +896,54 @@
         updateSyncBtnState();
     }
 
-    // 定期更新桌況顏色 (每 60 秒)
     setInterval(() => {
         if(document.getElementById('table-area').style.display !== 'none') {
             renderTableDashboard();
         }
     }, 60000);
 
+    // --- 設定桌數 ---
+    function setTableCount() {
+        Swal.fire({
+            title: '設定門市桌數',
+            input: 'number',
+            inputLabel: '請輸入總桌數 (將自動產生 1, 2, 3...)',
+            inputValue: tableCount,
+            showCancelButton: true,
+            confirmButtonText: '儲存',
+            cancelButtonText: '取消',
+            heightAuto: false,
+            inputValidator: (value) => {
+                if (!value || value <= 0) return '請輸入大於 0 的有效數字';
+            }
+        }).then((result) => {
+            if (result.isConfirmed && result.value > 0) {
+                tableCount = parseInt(result.value);
+                localStorage.setItem('yupin_pos_table_count', tableCount);
+                ALL_TABLES = Array.from({length: tableCount}, (_, i) => (i + 1).toString());
+
+                if (isOnline) {
+                    db.ref('table_count').set(tableCount);
+                }
+
+                initTableSelect();
+                if(document.getElementById('table-area').style.display !== 'none') {
+                    renderTableDashboard();
+                }
+                notyf.success(`已更新為 ${tableCount} 桌`);
+            }
+        });
+    }
+
     // --- Sync Logic (Atomic Updates) ---
     function updateSyncBtnState() {
         const localOrders = JSON.parse(localStorage.getItem('little_nook_offline_orders') || '[]');
         const btn = document.getElementById('sync-btn');
         if (localOrders.length > 0) {
-            btn.innerHTML = `⚠️ <b>${localOrders.length}</b> 筆未同步`;
+            btn.innerHTML = `<i class="ph-bold ph-warning-circle"></i> <b>${localOrders.length}</b> 筆未同步`;
             btn.classList.add('has-data');
         } else {
-            btn.innerHTML = `☁️ 雲端同步`;
+            btn.innerHTML = `<i class="ph-bold ph-cloud-arrow-up"></i> 雲端同步`;
             btn.classList.remove('has-data');
         }
     }
@@ -667,10 +957,10 @@
         const localOrders = JSON.parse(localStorage.getItem('little_nook_offline_orders') || '[]');
 
         if (localOrders.length === 0) {
-            // Even if no orders, sync inventory and active_tables to cloud just in case of local overrides
             let updates = {};
             updates['/inventory'] = inv;
             updates['/active_tables'] = activeTables;
+            updates['/table_count'] = tableCount;
             db.ref().update(updates).then(() => notyf.success('系統設定與桌況已同步'));
             return;
         }
@@ -687,7 +977,6 @@
                 let updates = {};
                 let localDeductions = {};
 
-                // 處理離線訂單與計算總扣除量
                 localOrders.forEach(order => {
                     const newKey = db.ref('orders').push().key;
                     updates['/orders/' + newKey] = order;
@@ -701,7 +990,6 @@
                     });
                 });
 
-                // 套用原子更新 (Atomic Increment) 避免競態條件
                 for(let subId in localDeductions) {
                     for (let c = 0; c < inv.length; c++) {
                         for (let i = 0; i < (inv[c].items || []).length; i++) {
@@ -712,8 +1000,8 @@
                     }
                 }
 
-                // Sync active tables state
                 updates['/active_tables'] = activeTables;
+                updates['/table_count'] = tableCount;
 
                 return db.ref().update(updates)
                     .then(() => {
@@ -721,7 +1009,7 @@
                         updateSyncBtnState();
                     })
                     .catch(error => {
-                        Swal.showValidationMessage(`Request failed: ${error}`);
+                        Swal.showValidationMessage(`同步失敗: ${error}`);
                     });
             },
             allowOutsideClick: () => !Swal.isLoading()
@@ -736,21 +1024,43 @@
     function toggleView(view) {
         const itemArea = document.getElementById('item-area');
         const tableArea = document.getElementById('table-area');
+        const btnMenu = document.getElementById('btn-nav-menu');
+        const btnTables = document.getElementById('btn-nav-tables');
 
         if (view === 'tables') {
             itemArea.style.display = 'none';
             tableArea.style.display = 'block';
+            if(btnMenu) {
+                btnMenu.style.background = 'var(--bg-card)';
+                btnMenu.style.color = 'var(--text-main)';
+                btnMenu.style.border = '1px solid var(--border-soft)';
+            }
+            if(btnTables) {
+                btnTables.style.background = 'var(--primary)';
+                btnTables.style.color = 'white';
+                btnTables.style.border = 'none';
+            }
             renderTableDashboard();
         } else {
             itemArea.style.display = 'block';
             tableArea.style.display = 'none';
+            if(btnTables) {
+                btnTables.style.background = 'var(--bg-card)';
+                btnTables.style.color = 'var(--text-main)';
+                btnTables.style.border = '1px solid var(--border-soft)';
+            }
+            if(btnMenu) {
+                btnMenu.style.background = 'var(--primary)';
+                btnMenu.style.color = 'white';
+                btnMenu.style.border = 'none';
+            }
         }
     }
 
     // --- Init Table Selector ---
     function initTableSelect() {
         const sel = document.getElementById('checkout-table');
-        sel.innerHTML = '<option value="">-- 必填：選擇桌號 --</option>' +
+        sel.innerHTML = '<option value="">-- 選擇桌號 --</option>' +
             ALL_TABLES.map(t => `<option value="${t}">${t}</option>`).join('');
     }
 
@@ -759,7 +1069,7 @@
         const area = document.getElementById('table-area');
         if(!area) return;
 
-        let html = `<h2 style="margin-top:0; color:#5d5246;">🪑 門市桌況監控</h2><div class="table-grid">`;
+        let html = `<h2 style="margin-top:0; color:var(--text-main); font-size:1.4em; display:flex; align-items:center; gap:8px;"><i class="ph-bold ph-armchair"></i> 門市桌況監控</h2><div class="table-grid">`;
         const now = Date.now();
 
         ALL_TABLES.forEach(tName => {
@@ -771,18 +1081,21 @@
                 if (elapsedMins >= 120) colorClass = 't-red-blink';
                 else if (elapsedMins >= 90) colorClass = 't-yellow';
 
-                let totalItems = tableData.items.length; // 簡單計算總項數
+                let totalItems = tableData.items.length;
+                let unservedItems = tableData.items.filter(it => !it.served).length;
+                let serveStatusText = unservedItems === 0 ? `<span style="color:#22543D;"><i class="ph-bold ph-check-circle"></i> 全上</span>` : `<span style="color:#742A2A;"><i class="ph-bold ph-hourglass-high"></i> 剩 ${unservedItems} 項</span>`;
+
                 html += `
                     <div class="t-card ${colorClass}" onclick="openTableDetails('${tName}')">
-                        <div class="t-name">${tName}</div>
-                        <div class="t-time">⏱️ ${elapsedMins} 分鐘</div>
-                        <div class="t-items">已點 ${totalItems} 項</div>
+                        <div class="t-name">桌號 ${tName}</div>
+                        <div class="t-time"><i class="ph-bold ph-timer"></i> ${elapsedMins} 分鐘</div>
+                        <div class="t-items"><span>共 ${totalItems} 項</span><span>${serveStatusText}</span></div>
                     </div>`;
             } else {
                 html += `
                     <div class="t-card t-empty" onclick="notyf.success('此桌目前空閒')">
-                        <div class="t-name">${tName}</div>
-                        <div class="t-time">空桌</div>
+                        <div class="t-name">桌號 ${tName}</div>
+                        <div class="t-time" style="background:transparent; color:var(--text-muted); box-shadow:none;">空桌</div>
                     </div>`;
             }
         });
@@ -796,22 +1109,34 @@
 
         const elapsedMins = Math.floor((Date.now() - data.startTime) / 60000);
         const startStr = new Date(data.startTime).toLocaleTimeString('zh-TW', {hour12:false});
-        let colorStyle = elapsedMins >= 120 ? 'color:red;' : (elapsedMins >= 90 ? 'color:#d69e2e;' : 'color:green;');
+        let colorStyle = elapsedMins >= 120 ? 'color:var(--danger-red);' : (elapsedMins >= 90 ? 'color:#D69E2E;' : 'color:var(--accent-green);');
 
-        let itemsHtml = data.items.map(it => `
-            <div style="padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                    <div style="font-weight:bold; font-size:1.1em;">${it.n}</div>
-                    ${it.comboDetail ? `<div style="font-size:0.85em; color:#666; margin-top:3px;">↳ ${it.comboDetail}</div>` : ''}
+        let unservedCount = data.items.filter(it => !it.served).length;
+        let allServed = unservedCount === 0 && data.items.length > 0;
+
+        let itemsHtml = data.items.map((it, i) => `
+            <div class="td-item-row ${it.served ? 'is-served' : ''}">
+                <div style="flex:1; padding-right:10px;">
+                    <div style="font-weight:700; font-size:1.1em; ${it.served ? 'text-decoration:line-through; color:var(--text-muted);' : 'color:var(--text-main);'}">${it.n}</div>
+                    ${it.comboDetail ? `<div style="font-size:0.85em; color:var(--text-muted); margin-top:4px;"><i class="ph-bold ph-arrow-elbow-down-right"></i> ${it.comboDetail}</div>` : ''}
                 </div>
-                <div style="font-weight:bold; color:var(--accent-brown);">$${it.p}</div>
+                <div class="td-item-right">
+                    <div style="font-weight:700; color:var(--primary); font-size:1.1em;">$${it.p}</div>
+                    <label class="serve-cb-wrapper ${it.served ? 'served' : ''}">
+                        <input type="checkbox" class="serve-cb" ${it.served ? 'checked' : ''} onchange="toggleItemServed('${tName}', ${i}, this.checked)">
+                        <span>${it.served ? '已出' : '出餐'}</span>
+                    </label>
+                </div>
             </div>
         `).join('');
 
-        document.getElementById('td-modal-title').innerText = `🪑 ${tName} - 全單明細`;
+        document.getElementById('td-modal-title').innerHTML = `<i class="ph-bold ph-armchair"></i> 桌號 ${tName} - 全單明細`;
         document.getElementById('td-modal-info').innerHTML = `
-            入座時間：${startStr}
-            <span style="float:right; ${colorStyle}">已入座：${elapsedMins} 分鐘</span>
+            <div style="display:flex; justify-content:space-between; font-size:1.05em;">
+                <span>入座：${startStr}</span>
+                <span style="${colorStyle}">已入座：${elapsedMins} 分鐘</span>
+            </div>
+            ${allServed ? `<div style="margin-top:12px; color:var(--accent-green); text-align:center; display:flex; align-items:center; justify-content:center; gap:6px;"><i class="ph-fill ph-check-circle"></i> 全數餐點已出齊</div>` : `<div style="margin-top:12px; color:var(--danger-red); text-align:center; display:flex; align-items:center; justify-content:center; gap:6px;"><i class="ph-bold ph-hourglass-high"></i> 尚有 ${unservedCount} 項未出餐</div>`}
         `;
         document.getElementById('td-modal-items').innerHTML = itemsHtml;
 
@@ -820,13 +1145,29 @@
         openModal('table-details-modal');
     }
 
+    // --- Serve Item Toggle Logic ---
+    window.toggleItemServed = function(tName, itemIdx, isServed) {
+        if(!activeTables[tName] || !activeTables[tName].items[itemIdx]) return;
+
+        activeTables[tName].items[itemIdx].served = isServed;
+
+        if (isOnline) {
+            db.ref('/active_tables/' + tName + '/items/' + itemIdx + '/served').set(isServed);
+        } else {
+            localStorage.setItem('yupin_pos_active_tables', JSON.stringify(activeTables));
+        }
+
+        openTableDetails(tName);
+        renderTableDashboard();
+    };
+
     function clearTable(tName) {
         Swal.fire({
-            title: `確定清空 ${tName}？`,
+            title: `確定清空桌號 ${tName}？`,
             text: '客人已離場？這將會把桌位變回空桌狀態，不會影響已結帳的歷史營收',
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#e53e3e',
+            confirmButtonColor: '#D96C6C',
             confirmButtonText: '確定清空',
             cancelButtonText: '取消',
             heightAuto: false
@@ -834,14 +1175,14 @@
             if(res.isConfirmed) {
                 if (isOnline) {
                     db.ref('/active_tables/' + tName).remove().then(() => {
-                        notyf.success(`${tName} 已清空`);
+                        notyf.success(`桌號 ${tName} 已清空`);
                         closeModal('table-details-modal');
                     });
                 } else {
                     delete activeTables[tName];
                     localStorage.setItem('yupin_pos_active_tables', JSON.stringify(activeTables));
                     renderTableDashboard();
-                    notyf.success(`${tName} 已清空 (離線)`);
+                    notyf.success(`桌號 ${tName} 已清空 (離線)`);
                     closeModal('table-details-modal');
                 }
             }
@@ -850,23 +1191,19 @@
 
     // --- UI Rendering (Products) ---
     function initUI() {
-        const area = document.getElementById('item-area'), nav = document.getElementById('navbar');
-        // Removed jumpSelect retrieval as it is removed
-        area.innerHTML = ''; nav.innerHTML = '';
+        const area = document.getElementById('item-area');
+        area.innerHTML = '';
 
         inv.forEach((cat, idx) => {
-            // Clicking a category automatically switches view back to products
-            nav.innerHTML += `<div class="nav-btn" onclick="toggleView('products'); document.getElementById('c${idx}').scrollIntoView()">${cat.cat}</div>`;
-
-            let gridHtml = `<div class="cat-title" id="c${idx}">${cat.cat}</div><div class="product-grid">`;
+            let gridHtml = `<div class="cat-title" id="c${idx}"><i class="ph-fill ph-tag"></i> ${cat.cat}</div><div class="product-grid">`;
             if(!cat.items || cat.items.length === 0) {
-                gridHtml += `<div style="color:#999; padding:10px;">此分類暫無商品</div>`;
+                gridHtml += `<div style="color:var(--text-muted); padding:10px;">此分類暫無商品</div>`;
             } else {
                 cat.items.forEach((it, itemIdx) => {
                     const isCombo = it.type === 'combo';
                     gridHtml += `<div class="p-btn ${isCombo ? 'combo-item' : ''}" onclick="addCartClick(${idx}, ${itemIdx})">
                         ${isCombo ? '<span class="combo-badge">套餐</span>' : ''}
-                        <div class="p-name">${it.id} ${it.n}</div>
+                        <div class="p-name">${it.n}</div>
                         <div class="p-price">$${it.p}</div>
                         <div class="p-stock">${isCombo ? '自選' : '存:'+it.s}</div>
                     </div>`;
@@ -875,14 +1212,12 @@
             area.innerHTML += gridHtml + '</div>';
         });
 
-        // Update Select options in Modals
         updateCatSelect('single-cat');
         updateCatSelect('combo-cat');
 
         if(document.getElementById('admin-panel').style.display === 'flex') renderAdminTable();
     }
 
-    // --- Modal Helpers ---
     function openModal(id) {
         document.getElementById(id).style.display = 'flex';
         if(id === 'admin-panel') renderAdminTable();
@@ -891,7 +1226,6 @@
         document.getElementById(id).style.display = 'none';
     }
 
-    // Auto-load history for today
     function openHistoryPanel() {
         const today = new Date();
         const yyyy = today.getFullYear();
@@ -904,9 +1238,7 @@
         searchHistory('day');
     }
 
-    // --- Add Single Product Logic ---
     function openAddSingleModal() {
-        // Reset form
         document.getElementById('single-id').value = '';
         document.getElementById('single-name').value = '';
         document.getElementById('single-price').value = '';
@@ -945,7 +1277,6 @@
         }
     }
 
-    // --- Add Combo Product Logic ---
     let tempComboSpecs = [];
     let tempActiveGroupIdx = -1;
 
@@ -988,27 +1319,27 @@
     function renderComboConfigUI() {
         const listEl = document.getElementById('combo-group-list-ui');
         if(tempComboSpecs.length === 0) {
-            listEl.innerHTML = '<div style="color:#999; text-align:center; padding:20px;">請先新增群組</div>';
+            listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">請先新增群組</div>';
         } else {
             listEl.innerHTML = tempComboSpecs.map((g, idx) => `
                 <div class="group-card ${idx === tempActiveGroupIdx ? 'active' : ''}" onclick="setComboActiveGroup(${idx})">
-                    <div style="font-weight:bold;">${g.title}</div>
-                    <div style="font-size:0.8em; color:#666;">已選 ${g.options.length} 項</div>
-                    <div style="text-align:right; font-size:0.8em; color:red;" onclick="event.stopPropagation(); removeComboGroup(${idx})">刪除</div>
+                    <div style="font-weight:700;">${g.title}</div>
+                    <div style="font-size:0.85em; color:var(--text-muted); margin-top:4px;">已選 ${g.options.length} 項</div>
+                    <div style="text-align:right; font-size:0.85em; color:var(--danger-red); margin-top:8px;" onclick="event.stopPropagation(); removeComboGroup(${idx})"><i class="ph-bold ph-trash"></i> 刪除</div>
                 </div>
             `).join('');
         }
 
         const poolEl = document.getElementById('combo-item-pool-ui');
         if(tempActiveGroupIdx === -1) {
-            poolEl.innerHTML = '<div style="color:#999; text-align:center; padding:20px;">請點選左側群組以勾選內容</div>';
+            poolEl.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">請點選左側群組以勾選內容</div>';
             return;
         }
 
         const currentOptions = tempComboSpecs[tempActiveGroupIdx].options;
         let html = '';
         inv.forEach(cat => {
-            let catHtml = `<div style="font-weight:bold; margin-top:5px; margin-bottom:5px; background:#eee; padding:2px 5px;">${cat.cat}</div><div class="checkbox-grid">`;
+            let catHtml = `<div style="font-weight:700; margin:12px 0 8px; color:var(--text-main);"><i class="ph-fill ph-tag"></i> ${cat.cat}</div><div class="checkbox-grid">`;
             let hasItems = false;
             (cat.items || []).forEach(item => {
                 if(item.type === 'combo') return;
@@ -1065,7 +1396,6 @@
         }
     }
 
-    // --- Admin General Functions ---
     function updateCatSelect(id) {
         const sel = document.getElementById(id);
         if(!sel) return;
@@ -1101,34 +1431,32 @@
     function renderAdminTable() {
         let html = '';
         inv.forEach((cat, ci) => {
-            html += `<tr id="ac${ci}" style="background:#eee;">
-                <td colspan="7" style="text-align:left; padding:10px;">
-                    <b>📂 ${cat.cat}</b>
-                    <button class="edit-cat-btn" onclick="editCategoryName(${ci})">✏️</button>
-                    <button class="del-cat-btn" onclick="deleteCategory(${ci})">🗑️</button>
+            html += `<tr id="ac${ci}" style="background:#FDFCF9;">
+                <td colspan="6" style="text-align:left; padding:14px; border-bottom: 2px solid var(--border-soft);">
+                    <b style="font-size:1.1em; color:var(--primary); display:inline-flex; align-items:center; gap:6px;"><i class="ph-fill ph-folder-open"></i> ${cat.cat}</b>
+                    <button class="btn-setting" style="margin-left:12px; padding:6px 10px;" onclick="editCategoryName(${ci})"><i class="ph-bold ph-pencil-simple"></i></button>
+                    <button class="btn-setting" style="color:var(--danger-red); padding:6px 10px;" onclick="deleteCategory(${ci})"><i class="ph-bold ph-trash"></i></button>
                 </td>
             </tr>`;
             (cat.items || []).forEach((it, ii) => {
                 const isCombo = it.type === 'combo';
                 html += `<tr draggable="true" data-cat="${ci}" data-idx="${ii}" class="draggable-row">
-                    <td><span class="drag-handle">☰</span></td>
-                    <td>${isCombo ? '<span style="color:blue">套餐</span>' : '單品'}</td>
+                    <td><span class="drag-handle"><i class="ph-bold ph-dots-six-vertical"></i></span></td>
                     <td style="text-align:left;"><input type="text" value="${it.n}" onchange="editItem(${ci},${ii},'n',this.value)" class="admin-table-input"></td>
-                    <td>${isCombo ? '-' : `<input type="number" value="${it.c}" onchange="editItem(${ci},${ii},'c',this.value)" class="admin-table-input" style="width:60px;">`}</td>
-                    <td><input type="number" value="${it.p}" onchange="editItem(${ci},${ii},'p',this.value)" class="admin-table-input" style="width:60px;"></td>
+                    <td>${isCombo ? '-' : `<input type="number" value="${it.c}" onchange="editItem(${ci},${ii},'c',this.value)" class="admin-table-input" style="width:70px;">`}</td>
+                    <td><input type="number" value="${it.p}" onchange="editItem(${ci},${ii},'p',this.value)" class="admin-table-input" style="width:70px;"></td>
                     <td>
                         ${isCombo
-                    ? `<button onclick="editComboSpecs(${ci},${ii})" class="btn-setting">⚙️ 內容</button>`
-                    : `<input type="number" value="${it.s}" onchange="editItem(${ci},${ii},'s',this.value)" class="admin-table-input" style="width:60px;">`}
+                    ? `<button onclick="editComboSpecs(${ci},${ii})" class="btn-setting"><i class="ph-bold ph-gear"></i> 內容</button>`
+                    : `<input type="number" value="${it.s}" onchange="editItem(${ci},${ii},'s',this.value)" class="admin-table-input" style="width:70px;">`}
                     </td>
-                    <td><span onclick="delP(${ci},${ii})" class="del-x">✕</span></td>
+                    <td><span onclick="delP(${ci},${ii})" class="del-x"><i class="ph-bold ph-trash"></i></span></td>
                 </tr>`;
             });
         });
         const tbody = document.getElementById('admin-tbody');
         tbody.innerHTML = html;
 
-        // Add Drag and Drop Listeners (Desktop)
         const rows = tbody.querySelectorAll('.draggable-row');
         rows.forEach(row => {
             row.addEventListener('dragstart', handleDragStart);
@@ -1137,7 +1465,6 @@
             row.addEventListener('dragend', handleDragEnd);
         });
 
-        // Add Touch Listeners for Mobile Drag & Drop
         const handles = tbody.querySelectorAll('.drag-handle');
         handles.forEach(handle => {
             handle.addEventListener('touchstart', handleTouchStart, {passive: false});
@@ -1200,8 +1527,9 @@
         const originalTable = document.getElementById('admin-main-table');
         tableWrapper.style.cssText = `
             position: fixed; pointer-events: none; z-index: 9999; opacity: 0.95;
-            box-shadow: 0 15px 25px rgba(0,0,0,0.3); background: white;
+            box-shadow: var(--shadow-float); background: white;
             border-collapse: collapse; width: ${originalTable.getBoundingClientRect().width}px;
+            border-radius: var(--radius-md); overflow: hidden;
         `;
 
         const tbody = document.createElement('tbody');
@@ -1253,9 +1581,9 @@
             const tgtIdx = parseInt(targetRow.dataset.idx);
 
             if (tgtIdx < srcIdx) {
-                targetRow.style.borderTop = '2px solid var(--accent-brown)';
+                targetRow.style.borderTop = '2px solid var(--primary)';
             } else {
-                targetRow.style.borderBottom = '2px solid var(--accent-brown)';
+                targetRow.style.borderBottom = '2px solid var(--primary)';
             }
         }
     }
@@ -1299,7 +1627,6 @@
         dragSrcEl = null;
     }
 
-
     function editComboSpecs(ci, ii) {
         const item = inv[ci].items[ii];
         document.getElementById('combo-name').value = item.n;
@@ -1312,10 +1639,10 @@
         renderComboConfigUI();
 
         const btn = document.querySelector('#modal-combo-product .btn-submit');
-        const oldText = btn.innerText;
+        const oldText = btn.innerHTML;
         const oldOnClick = btn.onclick;
 
-        btn.innerText = "更新套餐";
+        btn.innerHTML = "<i class='ph-bold ph-check'></i> 更新套餐";
         btn.onclick = function() {
             item.n = document.getElementById('combo-name').value;
             item.p = Number(document.getElementById('combo-price').value);
@@ -1327,7 +1654,7 @@
             closeModal('modal-combo-product');
             notyf.success('套餐內容已更新');
 
-            btn.innerText = oldText;
+            btn.innerHTML = oldText;
             btn.onclick = oldOnClick;
         };
 
@@ -1340,7 +1667,7 @@
     }
 
     function delP(ci, ii) {
-        Swal.fire({ title: '確定刪除?', text: "此操作無法復原", icon: 'warning', showCancelButton: true, heightAuto: false }).then((res) => {
+        Swal.fire({ title: '確定刪除?', text: "此操作無法復原", icon: 'warning', showCancelButton: true, confirmButtonColor: '#D96C6C', heightAuto: false }).then((res) => {
             if(res.isConfirmed) {
                 inv[ci].items.splice(ii,1);
                 if(isOnline) db.ref('inventory').set(inv);
@@ -1350,7 +1677,7 @@
     }
 
     function deleteCategory(ci) {
-        Swal.fire({ title: `刪除分類「${inv[ci].cat}」?`, text: "分類下所有商品也會消失", icon: 'warning', showCancelButton: true, heightAuto: false }).then((res) => {
+        Swal.fire({ title: `刪除分類「${inv[ci].cat}」?`, text: "分類下所有商品也會消失", icon: 'warning', showCancelButton: true, confirmButtonColor: '#D96C6C', heightAuto: false }).then((res) => {
             if(res.isConfirmed) {
                 inv.splice(ci, 1);
                 if(inv.length === 0) inv = [{cat: "預設分類", items: []}];
@@ -1402,22 +1729,22 @@
         pendingCombo = { ...item, selection: {} };
         const modal = document.getElementById('combo-select-modal');
         const area = document.getElementById('combo-selection-area');
-        document.getElementById('select-combo-title').innerText = `選擇：${item.n}`;
+        document.getElementById('select-combo-title').innerHTML = `<i class="ph-bold ph-squares-four"></i> 選擇：${item.n}`;
         modal.style.display = 'flex';
 
         let html = '';
         item.comboSpecs.forEach((group, gIdx) => {
             html += `<div class="combo-select-step">
-                <div class="combo-step-title">步驟 ${gIdx+1}: ${group.title}</div>
-                <div>`;
+                <div class="combo-step-title"><i class="ph-bold ph-check-circle"></i> 步驟 ${gIdx+1}: ${group.title}</div>
+                <div style="display:flex; flex-wrap:wrap; gap:10px;">`;
 
             group.options.forEach(optId => {
                 const targetItem = findItemById(optId);
                 if (targetItem) {
-                    const stockText = targetItem.s <= 0 ? '(缺貨)' : '';
+                    const stockText = targetItem.s <= 0 ? ' (缺貨)' : '';
                     const styleClass = targetItem.s <= 0 ? 'combo-option disabled' : 'combo-option';
                     html += `<span class="${styleClass}" onclick="selectComboOption('${group.title}', '${optId}', this)">
-                        ${targetItem.n} ${stockText}
+                        ${targetItem.n}${stockText}
                     </span>`;
                 }
             });
@@ -1477,18 +1804,25 @@
         document.getElementById('cart-list').innerHTML = cart.map((it, i) => `
             <div class="cart-item">
                 <div style="flex:1;">
-                    <div>${it.id} ${it.n}</div>
-                    ${it.comboDetail ? `<span class="cart-details">↳ ${it.comboDetail}</span>` : ''}
+                    <div style="font-weight:600; color:var(--text-main);">${it.n}</div>
+                    ${it.comboDetail ? `<span class="cart-details"><i class="ph-bold ph-arrow-elbow-down-right"></i> ${it.comboDetail}</span>` : ''}
                 </div>
-                <b>$${it.p}</b>
-                <span onclick="cart.splice(${i},1);renderCart()" style="color:red; cursor:pointer; margin-left:10px;">✕</span>
+                <b style="color:var(--primary); font-size:1.1em;">$${it.p}</b>
+                <span onclick="cart.splice(${i},1);renderCart()" style="color:var(--danger-red); cursor:pointer; margin-left:16px; padding:4px;"><i class="ph-bold ph-trash"></i></span>
             </div>`).join('');
         calc();
+
+        const mobileCount = document.getElementById('mobile-cart-count');
+        if(mobileCount) mobileCount.innerText = cart.length;
     }
 
     function calc() {
         const total = cart.reduce((a,b)=>a+b.p, 0) - Number(document.getElementById('discount').value || 0);
-        document.getElementById('final-total').innerText = Math.max(0, total);
+        const finalT = Math.max(0, total);
+        document.getElementById('final-total').innerText = finalT;
+        const mobileTotal = document.getElementById('mobile-cart-total');
+        if(mobileTotal) mobileTotal.innerText = finalT;
+
         calcChange();
     }
 
@@ -1508,13 +1842,16 @@
         if(!cart.length) return notyf.error('購物車是空的');
 
         const selectedTable = document.getElementById('checkout-table').value;
-        if(!selectedTable) return notyf.error('請先選擇桌號！');
+        if(!selectedTable) {
+            toggleMobileCart(true);
+            return notyf.error('請先選擇桌號！');
+        }
 
         const total = Number(document.getElementById('final-total').innerText);
 
         Swal.fire({
             title: '確認結帳?',
-            html: `總金額: <b style="color:red; font-size:1.2em;">$${total}</b><br>支付方式: ${currentPay}<br>桌號: <b>${selectedTable}</b>`,
+            html: `總金額: <b style="color:var(--danger-red); font-size:1.4em;">$${total}</b><br><br>支付方式: ${currentPay}<br>桌號: <b>${selectedTable}</b>`,
             showCancelButton: true,
             confirmButtonText: '確認結帳',
             cancelButtonText: '取消',
@@ -1556,7 +1893,7 @@
                 if (activeTables[selectedTable]) {
                     // Table already occupied, just append items
                     newTableData = {
-                        startTime: activeTables[selectedTable].startTime, // Keep original start time
+                        startTime: activeTables[selectedTable].startTime,
                         items: [...(activeTables[selectedTable].items || []), ...cart]
                     };
                 } else {
@@ -1572,7 +1909,6 @@
                     const newOrderKey = db.ref('orders').push().key;
                     updates['/orders/' + newOrderKey] = orderData;
 
-                    // Update active tables
                     if (newTableData) {
                         updates['/active_tables/' + selectedTable] = newTableData;
                     }
@@ -1625,8 +1961,10 @@
                 document.getElementById('discount').value = '';
                 document.getElementById('discount-note').value = '';
                 document.getElementById('cash-in').value = '';
-                document.getElementById('checkout-table').value = ''; // 結帳後清空桌號選項
+                document.getElementById('checkout-table').value = '';
                 renderCart();
+
+                toggleMobileCart(false);
             }
         });
     }
@@ -1653,11 +1991,11 @@
         const logArea = document.getElementById('order-log');
         const today = new Date().toLocaleDateString('zh-TW');
         const todayOrders = orders.filter(o => o.d === today).slice(0, 10);
-        if(todayOrders.length === 0) { logArea.innerHTML = '<div style="color:#999; padding:10px; text-align:center;">今日尚無交易</div>'; return; }
+        if(todayOrders.length === 0) { logArea.innerHTML = '<div style="color:var(--text-muted); padding:10px; text-align:center;">今日尚無交易</div>'; return; }
         logArea.innerHTML = todayOrders.map(o => `
-            <div style="border-bottom:1px solid #eee; padding:5px 0; font-size:0.9em;">
-                <span style="color:#888;">[${o.t}]</span> <b>$${o.total}</b> (${o.pay}) ${o.table ? `<span style="color:var(--accent-brown); font-weight:bold;">[${o.table}]</span>` : ''}
-                <div style="color:#666; font-size:0.85em;">${o.items.map(i => i.n + (i.comboDetail ? '(套)' : '')).join(', ')}</div>
+            <div style="border-bottom:1px solid var(--border-soft); padding:8px 0; font-size:0.95em;">
+                <span style="color:var(--text-muted); font-weight:600;">[${o.t}]</span> <b style="color:var(--primary);">$${o.total}</b> <span style="font-size:0.85em; color:var(--text-muted); border:1px solid var(--border-soft); padding:2px 6px; border-radius:4px;">${o.pay}</span> ${o.table ? `<span style="color:var(--accent-green); font-weight:bold; margin-left:4px;">桌號 ${o.table}</span>` : ''}
+                <div style="color:var(--text-main); font-size:0.9em; margin-top:4px;">${o.items.map(i => i.n + (i.comboDetail ? '(套)' : '')).join(', ')}</div>
             </div>`).join('');
     }
 
@@ -1670,7 +2008,7 @@
             if(!date) return notyf.error('請選擇日期');
             const dateStr = new Date(date).toLocaleDateString('zh-TW');
             filtered = orders.filter(o => o.d === dateStr);
-            title = `📅 ${dateStr} 交易紀錄`;
+            title = `<i class="ph-bold ph-calendar-blank"></i> ${dateStr} 交易紀錄`;
         } else {
             const month = document.getElementById('search-month').value;
             if(!month) return notyf.error('請選擇月份');
@@ -1679,21 +2017,25 @@
                 const oMonth = `${parts[0]}-${parts[1].padStart(2,'0')}`;
                 return oMonth === month;
             });
-            title = `📊 ${month} 月度統計`;
+            title = `<i class="ph-bold ph-chart-bar"></i> ${month} 月度統計`;
         }
         let totalRev = 0, totalProf = 0;
-        let html = `<h3>${title}</h3>`;
-        if(filtered.length === 0) { html += "<p>此時段無資料</p>"; } else {
+        let html = `<h3 style="display:flex; align-items:center; gap:8px;">${title}</h3>`;
+        if(filtered.length === 0) { html += "<p style='color:var(--text-muted);'>此時段無資料</p>"; } else {
             filtered.forEach(o => {
                 totalRev += o.total;
                 totalProf += (o.profit || 0);
                 html += `<div class="history-card">
-                    <div class="history-del-btn" onclick="deleteOrder('${o.firebaseKey}')">退貨/刪除</div>
-                    <strong>【${o.pay}】總計: $${o.total}</strong> ${o.table ? `<span style="color:var(--accent-brown); font-weight:bold;">[${o.table}]</span>` : ''} <small>(${o.d} ${o.t})</small><br>
-                    <span style="font-size:0.9em; color:#666;">內容: ${o.items.map(i=>`${i.n}${i.comboDetail?`[${i.comboDetail}]`:''}`).join(', ')}</span>
+                    <div class="history-del-btn" onclick="deleteOrder('${o.firebaseKey}')"><i class="ph-bold ph-trash"></i> 退貨/刪除</div>
+                    <strong style="font-size:1.1em; color:var(--text-main);">【${o.pay}】總計: <span style="color:var(--primary);">$${o.total}</span></strong> ${o.table ? `<span style="color:var(--accent-green); font-weight:bold; margin-left:8px;">桌號 ${o.table}</span>` : ''} <span style="color:var(--text-muted); font-size:0.85em; margin-left:8px;"><i class="ph-bold ph-clock"></i> ${o.d} ${o.t}</span><br>
+                    <div style="font-size:0.95em; color:var(--text-muted); margin-top:8px; line-height:1.4;"><i class="ph-bold ph-shopping-bag"></i> 內容: ${o.items.map(i=>`${i.n}${i.comboDetail?`[${i.comboDetail}]`:''}`).join(', ')}</div>
                 </div>`;
             });
-            html = `<div style="background:#e8f5e9; padding:10px; border-radius:8px; margin-bottom:10px;"><b>總營收: $${totalRev}</b> | <b>預估毛利: $${totalProf}</b> | <b>單數: ${filtered.length}</b></div>` + html;
+            html = `<div style="background:#F0FDF4; padding:16px; border-radius:12px; margin-bottom:16px; border:1px solid #C6F6D5; display:flex; gap:16px; flex-wrap:wrap;">
+                        <div><span style="color:#22543D; font-size:0.9em;">總營收</span><br><b style="font-size:1.2em; color:var(--accent-green);">$${totalRev}</b></div>
+                        <div style="border-left:1px solid #C6F6D5; padding-left:16px;"><span style="color:#22543D; font-size:0.9em;">預估毛利</span><br><b style="font-size:1.2em; color:var(--primary);">$${totalProf}</b></div>
+                        <div style="border-left:1px solid #C6F6D5; padding-left:16px;"><span style="color:#22543D; font-size:0.9em;">總單數</span><br><b style="font-size:1.2em; color:var(--text-main);">${filtered.length}</b></div>
+                    </div>` + html;
         }
         resultArea.innerHTML = html;
     }
@@ -1706,6 +2048,7 @@
             text: '系統將自動退回此單的商品庫存',
             icon: 'warning',
             showCancelButton: true,
+            confirmButtonColor: '#D96C6C',
             heightAuto: false
         }).then((res)=>{
             if(res.isConfirmed) {
@@ -1738,7 +2081,6 @@
                 db.ref().update(updates)
                     .then(() => {
                         notyf.success('紀錄已刪除，庫存已回補');
-                        // Optional: Re-run search if needed, but Firebase 'on' listener will refresh the array soon.
                         document.getElementById('search-date').value && searchHistory('day');
                     })
                     .catch(e => notyf.error('刪除失敗: ' + e.message));
@@ -1750,7 +2092,7 @@
         const stats = {};
         orders.forEach(o => { o.items.forEach(it => { if(it.id === "支出") return; if(!stats[it.n]) stats[it.n] = { qty: 0, amt: 0 }; stats[it.n].qty += 1; stats[it.n].amt += it.p; }); });
         const sorted = Object.entries(stats).sort((a,b) => b[1].qty - a[1].qty);
-        document.getElementById('stat-tbody').innerHTML = sorted.map(([name, data]) => `<tr><td style="text-align:left;">${name}</td><td>${data.qty}</td><td>$${data.amt}</td></tr>`).join('');
+        document.getElementById('stat-tbody').innerHTML = sorted.map(([name, data]) => `<tr style="background:white;"><td style="text-align:left; font-weight:600; color:var(--text-main);">${name}</td><td><span style="background:var(--bg-body); padding:4px 8px; border-radius:6px; font-weight:600;">${data.qty}</span></td><td style="color:var(--primary); font-weight:700;">$${data.amt}</td></tr>`).join('');
     }
 
     function backupData() {
