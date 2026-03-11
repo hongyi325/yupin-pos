@@ -160,7 +160,7 @@
             font-size: 16px !important; padding: 0 16px; min-height: 48px; width: 100%; border-radius: var(--radius-md);
             border: 1px solid #E2DED9; text-align: left; box-sizing: border-box;
             background: var(--bg-body); color: var(--text-main); font-weight: 500; transition: all 0.2s;
-            line-height: normal; -webkit-appearance: none; appearance: none;
+            line-height: normal; -webkit-appearance: none; appearance: none; font-family: inherit;
         }
         .big-input:focus, .table-select:focus, .form-control:focus { outline: none; border-color: var(--primary); background: #FFF; box-shadow: 0 0 0 4px rgba(156, 131, 106, 0.1); }
         .big-input { text-align: right; font-size: 1.25em !important; font-weight: 700; background: #FFF; border-color: var(--border-soft); min-height: 54px; }
@@ -173,8 +173,6 @@
         }
 
         .small-note { font-size: 1em; padding: 0 16px; height: 44px; width: 100%; border-radius: var(--radius-md); border: 1px solid #E2DED9; box-sizing: border-box; margin-top: 8px; background: var(--bg-body); }
-
-        input[type="date"].form-control { padding: 12px 16px; font-family: inherit; background-color: #FFF; display: block; min-height: 52px; }
 
         .total-display { font-size: 2.8em; font-weight: 800; color: var(--danger-red); text-align: right; margin: 16px 0; letter-spacing: -1px; }
 
@@ -324,6 +322,16 @@
         .history-del-btn { color: var(--danger-red); cursor: pointer; font-weight: 600; border: 1px solid #FED7D7; padding: 6px 12px; border-radius: 8px; font-size: 0.85em; background: #FFF5F5; display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: 0.2s; flex-shrink: 0; min-height: 36px; }
         .history-del-btn:active { transform: scale(0.95); }
 
+        /* History Search UI */
+        .history-controls-container {
+            background: #FDFCF9; padding: 16px; border-radius: 12px; margin-bottom: 16px;
+            display: flex; gap: 16px; align-items: center; border: 1px solid var(--border-soft); flex-shrink: 0;
+        }
+        .history-search-row { display: flex; align-items: center; gap: 8px; flex: 1; }
+        .history-search-divider { width: 2px; height: 24px; background: var(--border-soft); }
+        .date-input-modern { background: #FFF !important; min-height: 48px !important; height: 48px !important; margin: 0 !important; flex: 1; padding: 0 12px !important; -webkit-appearance: none; appearance: none; font-family: inherit;}
+        .btn-search, .btn-stat { min-height: 48px; white-space: nowrap; flex-shrink: 0; padding: 0 20px; }
+
         .btn-setting { background: var(--bg-body); color: var(--text-main); border: 1px solid var(--border-soft); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.9em; font-weight: 600; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; min-height: 38px; }
         .btn-setting:active { transform: scale(0.96); background: var(--border-soft); }
 
@@ -463,12 +471,15 @@
             .small-note { font-size: 16px !important; min-height: 48px; height: 48px; margin-top: 12px; margin-bottom: 12px; }
             .small-note::placeholder { font-size: 0.9em; }
 
-            input[type="date"].form-control { font-size: 16px !important; margin-top: 12px; width: 100%; min-height: 52px; }
+            /* History Panel Search RWD */
+            .history-controls-container { flex-direction: column; align-items: stretch; gap: 12px; padding: 16px; }
+            .history-search-divider { width: 100%; height: 1px; }
+            .date-input-modern { min-height: 52px !important; height: 52px !important; font-size: 16px !important; }
+            .btn-search, .btn-stat { min-height: 52px; font-size: 1.1em; }
 
             #cart-list { margin-bottom: 20px; margin-top: 20px; }
         }
 
-        input[type="date"].form-control { padding: 12px 16px; font-family: inherit; background-color: #FFF; display: block; width: 100%; box-sizing: border-box; -webkit-appearance: none; appearance: none; }
         @media (min-width: 769px) { .mobile-drawer-header { display: none; } }
 
     </style>
@@ -540,7 +551,7 @@
                         <input type="checkbox" id="backdate-mode" onclick="document.getElementById('manual-date').style.display = this.checked ? 'block' : 'none'" style="width:18px; height:18px; accent-color:var(--primary); margin:0;">
                         <i class="ph-bold ph-calendar-blank"></i> 補登過去日期資料
                     </label>
-                    <input type="date" id="manual-date" class="form-control" style="display:none;">
+                    <input type="date" id="manual-date" class="form-control date-input-modern" style="display:none; background:#FFF;">
                 </div>
 
                 <button onclick="submitOrder()" class="btn-submit">結帳 / 送單 <i class="ph-bold ph-paper-plane-right"></i></button>
@@ -596,16 +607,19 @@
             <h2><i class="ph-bold ph-clock-counter-clockwise"></i> 歷史紀錄管理</h2>
             <button class="close-icon-btn" onclick="closeModal('history-panel')"><i class="ph ph-x"></i></button>
         </div>
-        <div style="background:#FDFCF9; padding:16px; border-radius:12px; margin-bottom:16px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; border:1px solid var(--border-soft); flex-shrink:0;">
-            <div style="display:flex; align-items:center; gap:8px;">
-                <input type="date" id="search-date" class="form-control" style="min-height:44px; padding:0 12px; width:auto; height: 44px;">
-                <button onclick="searchHistory('day')" class="dash-btn" style="min-height:44px;"><i class="ph-bold ph-magnifying-glass"></i> 查詢</button>
+
+        <div class="history-controls-container">
+            <div class="history-search-row">
+                <input type="date" id="search-date" class="form-control date-input-modern">
+                <button onclick="searchHistory('day')" class="dash-btn btn-search"><i class="ph-bold ph-magnifying-glass"></i> 查詢</button>
             </div>
-            <div style="border-left: 2px solid var(--border-soft); padding-left: 16px; display:flex; align-items:center; gap:8px;">
-                <input type="month" id="search-month" class="form-control" style="min-height:44px; padding:0 12px; width:auto; height: 44px;">
-                <button onclick="searchHistory('month')" class="dash-btn" style="background:var(--accent-green); min-height:44px;"><i class="ph-bold ph-chart-bar"></i> 統計</button>
+            <div class="history-search-divider"></div>
+            <div class="history-search-row">
+                <input type="month" id="search-month" class="form-control date-input-modern">
+                <button onclick="searchHistory('month')" class="dash-btn btn-stat"><i class="ph-bold ph-chart-bar"></i> 統計</button>
             </div>
         </div>
+
         <div id="history-result-area" style="flex:1; overflow-y:auto; background:white; padding:16px; border-radius:12px; border:1px solid var(--border-soft);"></div>
     </div>
 </div>
