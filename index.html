@@ -53,9 +53,10 @@
             overflow: hidden; -webkit-font-smoothing: antialiased;
         }
 
-        /* 頂部 Header */
+        /* 頂部 Header (加入 env(safe-area-inset-top) 避開 iPhone 動態島) */
         header {
-            background: var(--bg-card); color: var(--primary); padding: 16px;
+            background: var(--bg-card); color: var(--primary);
+            padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 16px 16px;
             text-align: center; font-size: 1.25em; font-weight: 700; flex-shrink: 0;
             cursor: default; user-select: none; border-bottom: 1px solid var(--border-soft);
             display: flex; justify-content: center; align-items: center; gap: 8px;
@@ -208,7 +209,7 @@
         .t-time { font-size: 0.9em; font-weight: 600; background: rgba(255,255,255,0.7); padding: 4px 8px; border-radius: var(--radius-pill); display: inline-flex; align-items: center; gap: 4px; margin: 0 auto; }
         .t-items { font-size: 0.85em; margin-top: 12px; font-weight: 500; display: flex; flex-direction: column; gap: 4px;}
 
-        /* --- 時間提醒區塊 (替代舊的今日紀錄，改為勾選完成) --- */
+        /* --- 時間提醒區塊 (替代舊的今日紀錄) --- */
         .alerts-area { display: flex; flex-direction: column; gap: 16px; flex-shrink: 0; }
         .alert-box {
             background: var(--bg-card); border-radius: var(--radius-lg); padding: 16px;
@@ -444,8 +445,6 @@
             .login-card-ui h2 { font-size: 1.5em; }
             .login-input { font-size: 1.3em; height: 54px; letter-spacing: 6px; }
             .login-card-ui .btn-submit { font-size: 1.1em; padding: 14px; }
-            .notyf__toast { padding: 8px 16px !important; }
-            .notyf__message { font-size: 0.95em !important; }
 
             /* 新增套餐跑版 */
             .combo-config-area { flex: none; display: flex; flex-direction: column; overflow: visible; padding: 12px; }
