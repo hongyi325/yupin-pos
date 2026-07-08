@@ -8,6 +8,7 @@
     <!-- 引入 Firebase v8 (已移除 auth，退回簡易前端防護) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <!-- 引入 XLSX 用於匯出 Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -871,19 +872,46 @@
         ]
     });
 
+    // 店家登入帳號 (email 僅為帳號代號、非機密；真正的機密是密碼，由 Firebase 端驗證)
+    // ⚠️ 請在 Firebase Console → Authentication 建立「一模一樣」的這個 email 帳號
+    const STAFF_EMAIL = "pos@yupin-pos.com";
+
+    // 登入狀態監聽：已登入才顯示系統並載入資料；未登入則顯示登入層
+    if (isOnline && firebase.auth) {
+        firebase.auth().onAuthStateChanged(user => {
+            if (user) {
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('login-pwd-input').value = '';
+                if (inv.length === 0) loadData();
+            } else {
+                document.getElementById('login-overlay').style.display = 'flex';
+            }
+        });
+    }
+
     async function checkSystemLogin() {
         const input = document.getElementById('login-pwd-input').value;
         if (!input) return notyf.error('請輸入密碼');
 
-        const inputHash = await hashPassword(input);
-        const storedHash = localStorage.getItem('yupin_pos_pwd_hash');
-
-        if (inputHash === storedHash) {
-            document.getElementById('login-overlay').style.display = 'none';
-            document.getElementById('login-pwd-input').value = '';
-            if (inv.length === 0) loadData();
+        if (isOnline && firebase.auth) {
+            // 線上：以 Firebase 帳號密碼登入 (密碼由雲端驗證，本機不留明碼)
+            try {
+                await firebase.auth().signInWithEmailAndPassword(STAFF_EMAIL, input);
+                // 成功後由 onAuthStateChanged 負責關閉登入層與載入資料
+            } catch (e) {
+                notyf.error('密碼不正確');
+            }
         } else {
-            notyf.error('密碼不正確');
+            // 離線後備：Firebase 不可用時，比對本機密碼讓 App 仍能開啟
+            const inputHash = await hashPassword(input);
+            const storedHash = localStorage.getItem('yupin_pos_pwd_hash');
+            if (inputHash === storedHash) {
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('login-pwd-input').value = '';
+                if (inv.length === 0) loadData();
+            } else {
+                notyf.error('密碼不正確');
+            }
         }
     }
 
@@ -913,9 +941,25 @@
             heightAuto: false
         }).then(async (result) => {
             if (result.isConfirmed && result.value) {
-                const newHash = await hashPassword(result.value);
-                localStorage.setItem('yupin_pos_pwd_hash', newHash);
-                notyf.success('系統密碼已更新');
+                const user = (isOnline && firebase.auth) ? firebase.auth().currentUser : null;
+                if (user) {
+                    // 線上：更新真正的 Firebase 帳號密碼
+                    try {
+                        await user.updatePassword(result.value);
+                        notyf.success('系統密碼已更新');
+                    } catch (e) {
+                        if (e.code === 'auth/requires-recent-login') {
+                            notyf.error('為安全起見，請重新登入後再改密碼');
+                        } else {
+                            notyf.error('更新失敗：' + e.message);
+                        }
+                    }
+                } else {
+                    // 離線後備：更新本機密碼
+                    const newHash = await hashPassword(result.value);
+                    localStorage.setItem('yupin_pos_pwd_hash', newHash);
+                    notyf.success('系統密碼已更新（離線本機）');
+                }
             }
         });
     }
