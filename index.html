@@ -5,22 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>御品泡茶體驗</title>
 
-    <!-- 引入 Firebase v8 (已移除 auth，退回簡易前端防護) -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <!-- 所有 CDN 依賴均鎖定精確版本並附 SRI (integrity)；升版時需重新計算雜湊 -->
+    <!-- 引入 Firebase v8 -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js" integrity="sha384-v3Z/Xdw1sCeo6M/geW7sn1Lt9obIm7MhAk8laVV+rvYFmzuWDELOiygx7dVte2dX" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js" integrity="sha384-fuqdSwJXSvcAuKu5FbSJcHqHK474liv5ji8tuDnHz1rpfrnuXZPdM0oRaSK6c95L" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js" integrity="sha384-p62xBRve8PdqGDGASZtZMuHgPsyPcT5VsFwgmz2p4zaFdEtt5ZzNqxK+CLzQS7xP" crossorigin="anonymous"></script>
     <!-- 引入 XLSX 用於匯出 Excel -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
 
     <!-- 引入 SweetAlert2 -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.26.25/dist/sweetalert2.all.min.js" integrity="sha384-nLoOnA/BDh8A/jxqtckg4DumuCGOBYUnNJLZdQz/zfYNp3wcjGSoWTAzgko06G/2" crossorigin="anonymous"></script>
 
     <!-- 引入 Notyf -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3.10.0/notyf.min.css" integrity="sha384-snpJ3knpH6avB6cP1vPkNdmRzCYaCpom/3TNOyvo189BiogXYXQfXkyYpZ2/xADs" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3.10.0/notyf.min.js" integrity="sha384-uuNfwJfjOG2ukYi4eAB11/t3lP4Zjf75a3UhgkLzEpiX8JpJfacpG7Ye+0tiVMxT" crossorigin="anonymous"></script>
 
-    <!-- 引入 Phosphor Icons (現代質感向量圖示) -->
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- 引入 Phosphor Icons (只載入本專案用到的 bold / fill 兩種字重) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/bold/style.css" integrity="sha384-nblAP2mo2pVPyMQZDw9Xy9Cwgs9lowushAYep4w5+Q9kF4Ibf3n0B/gCMVdR+Vqy" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css" integrity="sha384-pPVoXE8ft+zxKtxIDDI7SfTK6y95NHm4qa+hKEg/hs8VkjW5IP+9/dGOPCbDpUPl" crossorigin="anonymous">
 
     <style>
         /* 現代化色彩與設計系統 Token */
@@ -839,6 +841,15 @@
             ]}
     ];
 
+    // --- XSS 防護：使用者輸入的文字（品名、分類、群組名、備註等）進入 innerHTML 前必須經過 esc() ---
+    function esc(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    // 嵌入 onclick="fn('...')" 這類單引號 JS 字串時使用（先跳脫 JS 再跳脫 HTML）
+    function escJsStr(s) {
+        return esc(String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+    }
+
     // --- System Login & Security Logic (Web Crypto Hash + Salt) ---
     const SALT = "YUPIN_POS_SECURE_SALT";
 
@@ -876,10 +887,55 @@
     // ⚠️ 請在 Firebase Console → Authentication 建立「一模一樣」的這個 email 帳號
     const STAFF_EMAIL = "pos@yupin-pos.com";
 
+    // --- 閒置自動登出：連續 24 小時無任何操作即登出；任一操作都會重置計時 (每台裝置獨立計算) ---
+    const IDLE_LOGOUT_MS = 24 * 60 * 60 * 1000;
+    const IDLE_KEY = 'yupin_pos_last_active';
+    let lastActivityWrite = 0;
+
+    function touchActivity(force = false) {
+        const now = Date.now();
+        if (!force && now - lastActivityWrite < 60000) return; // 至多每分鐘寫入一次，避免頻繁 I/O
+        lastActivityWrite = now;
+        localStorage.setItem(IDLE_KEY, String(now));
+    }
+
+    function isIdleExpired() {
+        const last = parseInt(localStorage.getItem(IDLE_KEY)) || 0;
+        return last > 0 && (Date.now() - last >= IDLE_LOGOUT_MS);
+    }
+
+    function doIdleLogout() {
+        localStorage.removeItem(IDLE_KEY);
+        lastActivityWrite = 0;
+        const user = (isOnline && firebase.auth) ? firebase.auth().currentUser : null;
+        const overlayShown = document.getElementById('login-overlay').style.display !== 'none';
+        if (user) {
+            firebase.auth().signOut(); // onAuthStateChanged 會重新顯示登入層
+        } else if (!overlayShown) {
+            document.getElementById('login-overlay').style.display = 'flex';
+        } else {
+            return; // 本來就在登入畫面，不需提示
+        }
+        notyf.error('閒置超過 24 小時，已自動登出');
+    }
+
+    ['pointerdown', 'keydown', 'touchstart'].forEach(ev =>
+        document.addEventListener(ev, () => touchActivity(), { passive: true, capture: true }));
+    setInterval(() => { if (isIdleExpired()) doIdleLogout(); }, 60000);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && isIdleExpired()) doIdleLogout();
+    });
+
     // 登入狀態監聽：已登入才顯示系統並載入資料；未登入則顯示登入層
     if (isOnline && firebase.auth) {
         firebase.auth().onAuthStateChanged(user => {
             if (user) {
+                // Firebase 會自動還原上次的登入狀態；若這台裝置已閒置超過 24 小時則直接登出
+                if (isIdleExpired()) {
+                    doIdleLogout();
+                    return;
+                }
+                touchActivity(true); // 登入 (或還原登入) 視為一次操作
                 document.getElementById('login-overlay').style.display = 'none';
                 document.getElementById('login-pwd-input').value = '';
                 if (inv.length === 0) loadData();
@@ -906,6 +962,7 @@
             const inputHash = await hashPassword(input);
             const storedHash = localStorage.getItem('yupin_pos_pwd_hash');
             if (inputHash === storedHash) {
+                touchActivity(true); // 離線登入成功也重置閒置計時
                 document.getElementById('login-overlay').style.display = 'none';
                 document.getElementById('login-pwd-input').value = '';
                 if (inv.length === 0) loadData();
@@ -1316,8 +1373,8 @@
         let itemsHtml = data.items.map((it, i) => `
             <div class="td-item-row ${it.served ? 'is-served' : ''}">
                 <div style="flex:1; padding-right:10px;">
-                    <div style="font-weight:700; font-size:1.1em; ${it.served ? 'text-decoration:line-through; color:var(--text-muted);' : 'color:var(--text-main);'}">${it.n}</div>
-                    ${it.comboDetail ? `<div style="font-size:0.85em; color:var(--text-muted); margin-top:4px;"><i class="ph-bold ph-arrow-elbow-down-right"></i> ${it.comboDetail}</div>` : ''}
+                    <div style="font-weight:700; font-size:1.1em; ${it.served ? 'text-decoration:line-through; color:var(--text-muted);' : 'color:var(--text-main);'}">${esc(it.n)}</div>
+                    ${it.comboDetail ? `<div style="font-size:0.85em; color:var(--text-muted); margin-top:4px;"><i class="ph-bold ph-arrow-elbow-down-right"></i> ${esc(it.comboDetail)}</div>` : ''}
                 </div>
                 <div class="td-item-right">
                     <div style="font-weight:700; color:var(--primary); font-size:1.1em;">$${it.p}</div>
@@ -1364,7 +1421,7 @@
         area.innerHTML = '';
 
         inv.forEach((cat, idx) => {
-            let gridHtml = `<div class="cat-title" id="c${idx}"><i class="ph-fill ph-tag"></i> ${cat.cat}</div><div class="product-grid">`;
+            let gridHtml = `<div class="cat-title" id="c${idx}"><i class="ph-fill ph-tag"></i> ${esc(cat.cat)}</div><div class="product-grid">`;
             if(!cat.items || cat.items.length === 0) {
                 gridHtml += `<div style="color:var(--text-muted); padding:10px;">此分類暫無商品</div>`;
             } else {
@@ -1372,7 +1429,7 @@
                     const isCombo = it.type === 'combo';
                     gridHtml += `<div class="p-btn ${isCombo ? 'combo-item' : ''}" onclick="addCartClick(${idx}, ${itemIdx})">
                         ${isCombo ? '<span class="combo-badge">套餐</span>' : ''}
-                        <div class="p-name">${it.n}</div>
+                        <div class="p-name">${esc(it.n)}</div>
                         <div class="p-price">$${it.p}</div>
                         <div class="p-stock">${isCombo ? '自選' : '存:'+it.s}</div>
                     </div>`;
@@ -1492,7 +1549,7 @@
         } else {
             listEl.innerHTML = tempComboSpecs.map((g, idx) => `
                 <div class="group-card ${idx === tempActiveGroupIdx ? 'active' : ''}" onclick="setComboActiveGroup(${idx})">
-                    <div style="font-weight:700;">${g.title}</div>
+                    <div style="font-weight:700;">${esc(g.title)}</div>
                     <div style="font-size:0.85em; color:var(--text-muted); margin-top:4px;">已選 ${g.options.length} 項</div>
                     <div style="text-align:right; font-size:0.85em; color:var(--danger-red); margin-top:8px;" onclick="event.stopPropagation(); removeComboGroup(${idx})"><i class="ph-bold ph-trash"></i> 刪除</div>
                 </div>
@@ -1508,7 +1565,7 @@
         const currentOptions = tempComboSpecs[tempActiveGroupIdx].options;
         let html = '';
         inv.forEach(cat => {
-            let catHtml = `<div style="font-weight:700; margin:12px 0 8px; color:var(--text-main);"><i class="ph-fill ph-tag"></i> ${cat.cat}</div><div class="checkbox-grid">`;
+            let catHtml = `<div style="font-weight:700; margin:12px 0 8px; color:var(--text-main);"><i class="ph-fill ph-tag"></i> ${esc(cat.cat)}</div><div class="checkbox-grid">`;
             let hasItems = false;
             (cat.items || []).forEach(item => {
                 if(item.type === 'combo') return;
@@ -1516,8 +1573,8 @@
                 const isChecked = currentOptions.includes(item.id);
                 catHtml += `
                     <label class="check-item">
-                        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleItemInCombo('${item.id}', this.checked)">
-                        <span>${item.n}</span>
+                        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleItemInCombo('${escJsStr(item.id)}', this.checked)">
+                        <span>${esc(item.n)}</span>
                     </label>`;
             });
             catHtml += '</div>';
@@ -1568,7 +1625,7 @@
     function updateCatSelect(id) {
         const sel = document.getElementById(id);
         if(!sel) return;
-        sel.innerHTML = inv.map(c => `<option value="${c.cat}">${c.cat}</option>`).join('') +
+        sel.innerHTML = inv.map(c => `<option value="${esc(c.cat)}">${esc(c.cat)}</option>`).join('') +
             `<option value="ADD">➕ 新增分類...</option>`;
     }
 
@@ -1626,7 +1683,7 @@
             html += `<tr id="ac${ci}" class="cat-header-row">
                 <td colspan="6" style="text-align:left; padding:14px;">
                     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-                        <b style="font-size:1.1em; color:var(--primary); display:inline-flex; align-items:center; gap:6px;"><i class="ph-fill ph-folder-open"></i> ${cat.cat}</b>
+                        <b style="font-size:1.1em; color:var(--primary); display:inline-flex; align-items:center; gap:6px;"><i class="ph-fill ph-folder-open"></i> ${esc(cat.cat)}</b>
                         <div style="display: flex; gap: 6px;">
                             ${ci > 0 ? `<button class="btn-setting" style="padding:6px 10px;" onclick="moveCategoryUp(${ci})"><i class="ph-bold ph-arrow-up"></i></button>` : ''}
                             ${ci < inv.length - 1 ? `<button class="btn-setting" style="padding:6px 10px;" onclick="moveCategoryDown(${ci})"><i class="ph-bold ph-arrow-down"></i></button>` : ''}
@@ -1640,7 +1697,7 @@
                 const isCombo = it.type === 'combo';
                 html += `<tr draggable="true" data-cat="${ci}" data-idx="${ii}" class="draggable-row">
                     <td><span class="drag-handle"><i class="ph-bold ph-dots-six-vertical"></i></span></td>
-                    <td style="text-align:left;"><input type="text" value="${it.n}" onchange="editItem(${ci},${ii},'n',this.value)" class="admin-table-input"></td>
+                    <td style="text-align:left;"><input type="text" value="${esc(it.n)}" onchange="editItem(${ci},${ii},'n',this.value)" class="admin-table-input"></td>
                     <td>${isCombo ? '-' : `<input type="number" value="${it.c}" onchange="editItem(${ci},${ii},'c',this.value)" class="admin-table-input" style="width:70px;">`}</td>
                     <td><input type="number" value="${it.p}" onchange="editItem(${ci},${ii},'p',this.value)" class="admin-table-input" style="width:70px;"></td>
                     <td>
@@ -1876,7 +1933,7 @@
     }
 
     function deleteCategory(ci) {
-        Swal.fire({ title: `刪除分類「${inv[ci].cat}」?`, text: "分類下所有商品也會消失", icon: 'warning', showCancelButton: true, confirmButtonColor: '#D96C6C', heightAuto: false }).then((res) => {
+        Swal.fire({ title: `刪除分類「${esc(inv[ci].cat)}」?`, text: "分類下所有商品也會消失", icon: 'warning', showCancelButton: true, confirmButtonColor: '#D96C6C', heightAuto: false }).then((res) => {
             if(res.isConfirmed) {
                 inv.splice(ci, 1);
                 if(inv.length === 0) inv = [{cat: "預設分類", items: []}];
@@ -1928,22 +1985,22 @@
         pendingCombo = { ...item, selection: {} };
         const modal = document.getElementById('combo-select-modal');
         const area = document.getElementById('combo-selection-area');
-        document.getElementById('select-combo-title').innerHTML = `<i class="ph-bold ph-squares-four"></i> 選擇：${item.n}`;
+        document.getElementById('select-combo-title').innerHTML = `<i class="ph-bold ph-squares-four"></i> 選擇：${esc(item.n)}`;
         modal.style.display = 'flex';
 
         let html = '';
         item.comboSpecs.forEach((group, gIdx) => {
             html += `<div class="combo-select-step">
-                <div class="combo-step-title"><i class="ph-bold ph-check-circle"></i> 步驟 ${gIdx+1}: ${group.title}</div>
+                <div class="combo-step-title"><i class="ph-bold ph-check-circle"></i> 步驟 ${gIdx+1}: ${esc(group.title)}</div>
                 <div style="display:flex; flex-wrap:wrap; gap:10px;">`;
 
-            group.options.forEach(optId => {
+            group.options.forEach((optId, optIdx) => {
                 const targetItem = findItemById(optId);
                 if (targetItem) {
                     const stockText = targetItem.s <= 0 ? ' (缺貨)' : '';
                     const styleClass = targetItem.s <= 0 ? 'combo-option disabled' : 'combo-option';
-                    html += `<span class="${styleClass}" onclick="selectComboOption('${group.title}', '${optId}', this)">
-                        ${targetItem.n}${stockText}
+                    html += `<span class="${styleClass}" onclick="selectComboOption(${gIdx}, ${optIdx}, this)">
+                        ${esc(targetItem.n)}${stockText}
                     </span>`;
                 }
             });
@@ -1952,19 +2009,21 @@
         area.innerHTML = html;
     }
 
-    function selectComboOption(groupTitle, optId, el) {
+    function selectComboOption(gIdx, optIdx, el) {
         if (el.classList.contains('disabled')) return;
         const siblings = el.parentNode.children;
         for (let i=0; i<siblings.length; i++) siblings[i].classList.remove('selected');
         el.classList.add('selected');
-        pendingCombo.selection[groupTitle] = optId;
+        // 以索引傳遞、在此查回實際值，避免把使用者文字嵌進 onclick 屬性
+        const group = pendingCombo.comboSpecs[gIdx];
+        pendingCombo.selection[group.title] = group.options[optIdx];
     }
 
     function confirmComboSelection() {
         const specs = pendingCombo.comboSpecs;
         for (let spec of specs) {
             if (!pendingCombo.selection[spec.title]) {
-                notyf.error(`請選擇：${spec.title}`);
+                notyf.error(`請選擇：${esc(spec.title)}`);
                 return;
             }
         }
@@ -2003,8 +2062,8 @@
         document.getElementById('cart-list').innerHTML = cart.map((it, i) => `
             <div class="cart-item">
                 <div style="flex:1;">
-                    <div style="font-weight:600; color:var(--text-main);">${it.n}</div>
-                    ${it.comboDetail ? `<span class="cart-details"><i class="ph-bold ph-arrow-elbow-down-right"></i> ${it.comboDetail}</span>` : ''}
+                    <div style="font-weight:600; color:var(--text-main);">${esc(it.n)}</div>
+                    ${it.comboDetail ? `<span class="cart-details"><i class="ph-bold ph-arrow-elbow-down-right"></i> ${esc(it.comboDetail)}</span>` : ''}
                 </div>
                 <b style="color:var(--primary); font-size:1.1em;">$${it.p}</b>
                 <span onclick="cart.splice(${i},1);renderCart()" style="color:var(--danger-red); cursor:pointer; margin-left:16px; padding:4px;"><i class="ph-bold ph-trash"></i></span>
@@ -2218,13 +2277,13 @@
                 html += `<div class="history-card">
                     <div class="history-header">
                         <div>
-                            <strong style="font-size:1.1em; color:var(--text-main);">【${o.pay}】總計: <span style="color:var(--primary);">$${o.total}</span></strong>
-                            ${o.table ? `<span style="color:var(--accent-green); font-weight:bold; margin-left:8px;">桌號 ${o.table}</span>` : ''}
+                            <strong style="font-size:1.1em; color:var(--text-main);">【${esc(o.pay)}】總計: <span style="color:var(--primary);">$${o.total}</span></strong>
+                            ${o.table ? `<span style="color:var(--accent-green); font-weight:bold; margin-left:8px;">桌號 ${esc(o.table)}</span>` : ''}
                         </div>
                         <div class="history-del-btn" onclick="deleteOrder('${o.firebaseKey}')"><i class="ph-bold ph-trash"></i> 退貨/刪除</div>
                     </div>
                     <span style="color:var(--text-muted); font-size:0.85em;"><i class="ph-bold ph-clock"></i> ${o.d} ${o.t}</span>
-                    <div style="font-size:0.95em; color:var(--text-muted); margin-top:8px; line-height:1.4;"><i class="ph-bold ph-shopping-bag"></i> 內容: ${o.items.map(i=>`${i.n}${i.comboDetail?`[${i.comboDetail}]`:''}`).join(', ')}</div>
+                    <div style="font-size:0.95em; color:var(--text-muted); margin-top:8px; line-height:1.4;"><i class="ph-bold ph-shopping-bag"></i> 內容: ${o.items.map(i=>`${esc(i.n)}${i.comboDetail?`[${esc(i.comboDetail)}]`:''}`).join(', ')}</div>
                 </div>`;
             });
             html = `<div style="background:#F0FDF4; padding:16px; border-radius:12px; margin-bottom:16px; border:1px solid #C6F6D5; display:flex; gap:16px; flex-wrap:wrap;">
@@ -2288,7 +2347,7 @@
         const stats = {};
         orders.forEach(o => { o.items.forEach(it => { if(it.id === "支出") return; if(!stats[it.n]) stats[it.n] = { qty: 0, amt: 0 }; stats[it.n].qty += 1; stats[it.n].amt += it.p; }); });
         const sorted = Object.entries(stats).sort((a,b) => b[1].qty - a[1].qty);
-        document.getElementById('stat-tbody').innerHTML = sorted.map(([name, data]) => `<tr style="background:white;"><td style="text-align:left; font-weight:600; color:var(--text-main); padding: 8px;">${name}</td><td style="padding: 8px; text-align:center;"><span style="background:var(--bg-body); padding:4px 8px; border-radius:6px; font-weight:600;">${data.qty}</span></td><td style="color:var(--primary); font-weight:700; padding: 8px; text-align:center;">$${data.amt}</td></tr>`).join('');
+        document.getElementById('stat-tbody').innerHTML = sorted.map(([name, data]) => `<tr style="background:white;"><td style="text-align:left; font-weight:600; color:var(--text-main); padding: 8px;">${esc(name)}</td><td style="padding: 8px; text-align:center;"><span style="background:var(--bg-body); padding:4px 8px; border-radius:6px; font-weight:600;">${data.qty}</span></td><td style="color:var(--primary); font-weight:700; padding: 8px; text-align:center;">$${data.amt}</td></tr>`).join('');
     }
 
     function backupData() {
