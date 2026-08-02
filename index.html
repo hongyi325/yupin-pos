@@ -1122,11 +1122,9 @@
         const localOrders = JSON.parse(localStorage.getItem('little_nook_offline_orders') || '[]');
 
         if (localOrders.length === 0) {
-            let updates = {};
-            updates['/inventory'] = inv;
-            updates['/active_tables'] = activeTables;
-            updates['/table_count'] = tableCount;
-            db.ref().update(updates).then(() => notyf.success('系統設定與桌況已同步'));
+            // 線上模式下所有變更都已即時寫入 Firebase，這裡不可整包覆寫
+            // /inventory、/active_tables 等路徑，否則本機較舊的快照會蓋掉其他裝置剛寫入的資料
+            notyf.success('所有資料已即時同步，無待上傳的離線訂單');
             return;
         }
 
@@ -1165,8 +1163,8 @@
                     }
                 }
 
-                updates['/active_tables'] = activeTables;
-                updates['/table_count'] = tableCount;
+                // 只上傳離線訂單並以 increment 原子扣庫存；不覆寫 /active_tables、/table_count，
+                // 因為此時記憶體中的桌況是遠端快照，整包寫回會與其他裝置產生競態覆蓋
 
                 return db.ref().update(updates)
                     .then(() => {
