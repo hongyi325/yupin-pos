@@ -642,9 +642,12 @@
 
             <div style="margin-left:auto; display:flex; gap:12px;">
                 <button onclick="exportToExcel()" class="dash-btn" style="background:#2F855A;"><i class="ph-bold ph-download-simple"></i> 匯出</button>
+                <!-- 備份/還原按鈕暫時隱藏（backupData() 功能保留；還原的 importData() 尚未實作）
                 <button onclick="backupData()" class="dash-btn" style="background:var(--text-muted);"><i class="ph-bold ph-floppy-disk"></i> 備份</button>
                 <input type="file" id="import-file" style="display:none;" onchange="importData(event)">
                 <button onclick="document.getElementById('import-file').click()" class="dash-btn" style="background:var(--danger-red);"><i class="ph-bold ph-warning"></i> 還原</button>
+                -->
+
             </div>
         </div>
 
