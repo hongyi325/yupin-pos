@@ -2455,13 +2455,12 @@
     function exportToExcel() {
         const toInputVal = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         const now = new Date();
-        const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
         Swal.fire({
             title: '匯出 Excel',
             html: `<div style="display:flex; flex-direction:column; gap:4px; text-align:left;">
                     <label style="font-size:0.9em; color:#666;">起始日期</label>
-                    <input type="date" id="export-start" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${toInputVal(firstOfMonth)}">
+                    <input type="date" id="export-start" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${toInputVal(now)}">
                     <label style="font-size:0.9em; color:#666; margin-top:8px;">結束日期</label>
                     <input type="date" id="export-end" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${toInputVal(now)}">
                 </div>`,
