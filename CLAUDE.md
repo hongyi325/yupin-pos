@@ -23,7 +23,7 @@ There is **no build system, no package manager, no tests, and no lint**. All dep
 
 **Firebase data paths** (subscribed via `db.ref(path).on('value', ...)` so the UI reacts live to remote changes):
 - `inventory` — array of category objects `{ cat, items: [...] }`. Item fields are terse: `id`, `n` (name), `c` (cost), `p` (price), `s` (stock), `type` (`'item'` or `'combo'`). Combo items carry `comboDeductionIds` — the underlying item ids to deduct stock for.
-- `orders` — pushed with generated keys; each order stores `d` (date), `t` (time), `total`, `profit`, `pay`, `table`, `items` (cart snapshot), `discount`, `note`.
+- `orders` — pushed with generated keys; each order stores `d` (date), `t` (time), `total`, `profit`, `pay`, `table`, `items` (cart snapshot), `discount`, `note`. **Only the current month is subscribed** (`subscribeCurrentMonthOrders()`, range query on `d` with a `"YYYY/M/"` prefix — `d` is unpadded zh-TW format, so use `dateNum()`/`orderSortKey()` for comparisons, never string compare). History search / delete / Excel export / JSON backup fetch on demand (`fetchOrdersByDay/Month/InRange`). **The Rules must declare `".indexOn": ["d"]` on `orders`** or the SDK silently downloads the whole node and filters client-side.
 - `active_tables` — keyed by table number; tracks an in-progress table session (`startTime`, accumulated `items`, `ack90`/`ack120` timeout acknowledgements).
 - `table_count` — number of tables, synced across devices.
 

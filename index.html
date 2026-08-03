@@ -655,7 +655,7 @@
                 </table>
             </div>
             <div class="admin-ranking-box">
-                <h3 style="margin-top:0; margin-bottom:12px; color:var(--text-main); display:flex; align-items:center; gap:8px; flex-shrink: 0; font-size:1.1em;"><i class="ph-bold ph-chart-line-up"></i> 銷售排名</h3>
+                <h3 style="margin-top:0; margin-bottom:12px; color:var(--text-main); display:flex; align-items:center; gap:8px; flex-shrink: 0; font-size:1.1em;"><i class="ph-bold ph-chart-line-up"></i> 本月銷售排名</h3>
                 <div class="admin-ranking-inner">
                     <table style="font-size:0.95em; width:100%; border-collapse: collapse; white-space: nowrap;">
                         <thead style="position: sticky; top: 0; background: #FDFCF9; z-index: 2;">
@@ -1021,6 +1021,65 @@
         });
     }
 
+    // --- 訂單日期工具與按需查詢 ---
+    // 訂單的 d 欄位是 zh-TW 格式字串（如 "2026/8/3"，月/日不補零），不能直接做字串排序/區間比較
+    function dateNum(dStr) { // "2026/8/3" -> 20260803，供數值比較
+        const [y, m, d] = String(dStr || '').split('/').map(Number);
+        return (y || 0) * 10000 + (m || 0) * 100 + (d || 0);
+    }
+    function orderSortKey(o) {
+        const t = String(o.t || '').split(':').map(Number);
+        return dateNum(o.d) * 1000000 + (t[0] || 0) * 10000 + (t[1] || 0) * 100 + (t[2] || 0);
+    }
+    function snapToOrders(snap) {
+        const data = snap.val();
+        const list = data ? Object.keys(data).map(k => ({...data[k], firebaseKey: k})) : [];
+        list.sort((a, b) => orderSortKey(b) - orderSortKey(a));
+        return list;
+    }
+    // 查某年某月的訂單：以 "YYYY/M/" 前綴對 d 做範圍查詢。
+    // ⚠️ orders 節點需在 Firebase Rules 加上 ".indexOn": ["d"]，否則 SDK 會退回下載全部再過濾
+    function fetchOrdersByMonth(year, month) {
+        const prefix = `${year}/${month}/`;
+        return db.ref('orders').orderByChild('d').startAt(prefix).endAt(prefix + '\uf8ff')
+            .once('value').then(snapToOrders);
+    }
+    function fetchOrdersByDay(dStr) {
+        return db.ref('orders').orderByChild('d').equalTo(dStr)
+            .once('value').then(snapToOrders);
+    }
+    // 查任意日期區間：逐月查詢後在本地過濾出精確範圍
+    async function fetchOrdersInRange(startDate, endDate) {
+        const jobs = [];
+        const cur = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+        while (cur <= endDate) {
+            jobs.push(fetchOrdersByMonth(cur.getFullYear(), cur.getMonth() + 1));
+            cur.setMonth(cur.getMonth() + 1);
+        }
+        const sNum = dateNum(startDate.toLocaleDateString('zh-TW'));
+        const eNum = dateNum(endDate.toLocaleDateString('zh-TW'));
+        return (await Promise.all(jobs)).flat()
+            .filter(o => { const n = dateNum(o.d); return n >= sNum && n <= eNum; })
+            .sort((a, b) => orderSortKey(b) - orderSortKey(a));
+    }
+
+    // 只訂閱本月訂單（供本月銷售統計即時更新）；歷史資料改為查詢時按需讀取，
+    // 避免每次開啟 app 就下載全部歷史訂單（流量與載入速度都會隨年份惡化）
+    let ordersQuery = null;
+    let subscribedMonthPrefix = '';
+    function subscribeCurrentMonthOrders() {
+        const now = new Date();
+        const prefix = `${now.getFullYear()}/${now.getMonth() + 1}/`;
+        if (prefix === subscribedMonthPrefix) return; // 跨月時才需要重新訂閱
+        if (ordersQuery) ordersQuery.off();
+        subscribedMonthPrefix = prefix;
+        ordersQuery = db.ref('orders').orderByChild('d').startAt(prefix).endAt(prefix + '\uf8ff');
+        ordersQuery.on('value', snap => {
+            orders = snapToOrders(snap);
+            renderStatTable();
+        });
+    }
+
     // --- Core Data Logic ---
     function loadData() {
         initTableSelect();
@@ -1030,12 +1089,7 @@
                 inv = snap.val() || defaultInv;
                 initUI();
             });
-            db.ref('orders').on('value', snap => {
-                const data = snap.val();
-                orders = data ? Object.keys(data).map(k => ({...data[k], firebaseKey: k})) : [];
-                orders.sort((a,b) => (b.d+b.t).localeCompare(a.d+a.t));
-                renderStatTable();
-            });
+            subscribeCurrentMonthOrders();
             db.ref('active_tables').on('value', snap => {
                 activeTables = snap.val() || {};
                 renderTableDashboard();
@@ -1065,6 +1119,8 @@
         if(document.getElementById('table-area').style.display !== 'none') {
             renderTableDashboard();
         }
+        // app 長開跨月時，把訂單訂閱換到新的月份
+        if (isOnline && subscribedMonthPrefix) subscribeCurrentMonthOrders();
     }, 60000);
 
     // --- 設定桌數 ---
@@ -2246,25 +2302,49 @@
         });
     }
 
-    function searchHistory(mode) {
+    let lastHistoryMode = 'day';
+
+    async function searchHistory(mode) {
         const resultArea = document.getElementById('history-result-area');
         let filtered = [];
         let title = "";
+        lastHistoryMode = mode;
         if(mode === 'day') {
             const date = document.getElementById('search-date').value;
             if(!date) return notyf.error('請選擇日期');
             const dateStr = new Date(date).toLocaleDateString('zh-TW');
-            filtered = orders.filter(o => o.d === dateStr);
             title = `<i class="ph-bold ph-calendar-blank"></i> ${dateStr} 交易紀錄`;
+            if (isOnline) {
+                // 按需查詢該日訂單，不再依賴整包歷史資料
+                resultArea.innerHTML = "<p style='color:var(--text-muted);'>查詢中…</p>";
+                try {
+                    filtered = await fetchOrdersByDay(dateStr);
+                } catch (e) {
+                    resultArea.innerHTML = '';
+                    return notyf.error('查詢失敗: ' + e.message);
+                }
+            } else {
+                filtered = orders.filter(o => o.d === dateStr);
+            }
         } else {
-            const month = document.getElementById('search-month').value;
+            const month = document.getElementById('search-month').value; // "YYYY-MM"
             if(!month) return notyf.error('請選擇月份');
-            filtered = orders.filter(o => {
-                const parts = o.d.split('/');
-                const oMonth = `${parts[0]}-${parts[1].padStart(2,'0')}`;
-                return oMonth === month;
-            });
+            const [y, m] = month.split('-').map(Number);
             title = `<i class="ph-bold ph-chart-bar"></i> ${month} 月度統計`;
+            if (isOnline) {
+                resultArea.innerHTML = "<p style='color:var(--text-muted);'>查詢中…</p>";
+                try {
+                    filtered = await fetchOrdersByMonth(y, m);
+                } catch (e) {
+                    resultArea.innerHTML = '';
+                    return notyf.error('查詢失敗: ' + e.message);
+                }
+            } else {
+                filtered = orders.filter(o => {
+                    const parts = String(o.d || '').split('/');
+                    return Number(parts[0]) === y && Number(parts[1]) === m;
+                });
+            }
         }
         let totalRev = 0, totalProf = 0;
         let html = `<h3 style="display:flex; align-items:center; gap:8px;">${title}</h3>`;
@@ -2294,6 +2374,14 @@
     }
 
     // --- Auto-Restock Order Deletion ---
+    function refreshHistorySearch() {
+        if (lastHistoryMode === 'month') {
+            if (document.getElementById('search-month').value) searchHistory('month');
+        } else {
+            if (document.getElementById('search-date').value) searchHistory('day');
+        }
+    }
+
     function deleteOrder(key) {
         if(!isOnline) return notyf.error('本地模式不支援刪除，請連線後操作');
         Swal.fire({
@@ -2305,38 +2393,39 @@
             heightAuto: false
         }).then((res)=>{
             if(res.isConfirmed) {
-                const orderToDel = orders.find(o => o.firebaseKey === key);
-                if(!orderToDel) return notyf.error('找不到該筆訂單');
+                // 按需讀取該筆訂單（歷史資料已不再整包保存在記憶體）
+                db.ref('orders/' + key).once('value').then(snap => {
+                    const orderToDel = snap.val();
+                    if(!orderToDel) return notyf.error('找不到該筆訂單');
 
-                let updates = {};
-                updates[`/orders/${key}`] = null;
+                    let updates = {};
+                    updates[`/orders/${key}`] = null;
 
-                let stockIncrements = {};
-                orderToDel.items.forEach(item => {
-                    if (item.id === "支出") return;
-                    const ids = (item.type === 'combo' && item.comboDeductionIds) ? item.comboDeductionIds : [item.id];
-                    ids.forEach(subId => {
-                        stockIncrements[subId] = (stockIncrements[subId] || 0) + 1;
+                    let stockIncrements = {};
+                    (orderToDel.items || []).forEach(item => {
+                        if (item.id === "支出") return;
+                        const ids = (item.type === 'combo' && item.comboDeductionIds) ? item.comboDeductionIds : [item.id];
+                        ids.forEach(subId => {
+                            stockIncrements[subId] = (stockIncrements[subId] || 0) + 1;
+                        });
                     });
-                });
 
-                // 回補庫存的原子更新
-                for (let subId in stockIncrements) {
-                    for (let c = 0; c < inv.length; c++) {
-                        for (let i = 0; i < (inv[c].items || []).length; i++) {
-                            if (inv[c].items[i].id === subId) {
-                                updates[`/inventory/${c}/items/${i}/s`] = firebase.database.ServerValue.increment(stockIncrements[subId]);
+                    // 回補庫存的原子更新
+                    for (let subId in stockIncrements) {
+                        for (let c = 0; c < inv.length; c++) {
+                            for (let i = 0; i < (inv[c].items || []).length; i++) {
+                                if (inv[c].items[i].id === subId) {
+                                    updates[`/inventory/${c}/items/${i}/s`] = firebase.database.ServerValue.increment(stockIncrements[subId]);
+                                }
                             }
                         }
                     }
-                }
 
-                db.ref().update(updates)
-                    .then(() => {
+                    return db.ref().update(updates).then(() => {
                         notyf.success('紀錄已刪除，庫存已回補');
-                        document.getElementById('search-date').value && searchHistory('day');
-                    })
-                    .catch(e => notyf.error('刪除失敗: ' + e.message));
+                        refreshHistorySearch();
+                    });
+                }).catch(e => notyf.error('刪除失敗: ' + e.message));
             }
         });
     }
@@ -2348,16 +2437,70 @@
         document.getElementById('stat-tbody').innerHTML = sorted.map(([name, data]) => `<tr style="background:white;"><td style="text-align:left; font-weight:600; color:var(--text-main); padding: 8px;">${esc(name)}</td><td style="padding: 8px; text-align:center;"><span style="background:var(--bg-body); padding:4px 8px; border-radius:6px; font-weight:600;">${data.qty}</span></td><td style="color:var(--primary); font-weight:700; padding: 8px; text-align:center;">$${data.amt}</td></tr>`).join('');
     }
 
-    function backupData() {
-        const blob = new Blob([JSON.stringify({inv, orders, activeTables}, null, 2)], { type: "application/json" });
+    async function backupData() {
+        // 按需抓取全部訂單做完整備份（平常記憶體只保留本月）
+        let allOrders = orders;
+        if (isOnline) {
+            try {
+                allOrders = snapToOrders(await db.ref('orders').once('value'));
+            } catch (e) {
+                return notyf.error('讀取訂單失敗: ' + e.message);
+            }
+        }
+        const blob = new Blob([JSON.stringify({inv, orders: allOrders, activeTables}, null, 2)], { type: "application/json" });
         const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `YupinTea_Backup_${new Date().toLocaleDateString()}.json`; a.click();
+        notyf.success(`備份已下載（含 ${allOrders.length} 筆訂單）`);
     }
+
     function exportToExcel() {
-        const data = orders.map(o => ({ "日期": o.d, "時間": o.t, "桌號": o.table||'', "總額": o.total, "毛利": o.profit, "支付方式": o.pay, "備註": o.note, "商品明細": o.items.map(i=>i.n + (i.comboDetail ? `[${i.comboDetail}]` : '')).join(',') }));
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Sales");
-        XLSX.writeFile(wb, `Sales_Export_${new Date().toLocaleDateString()}.xlsx`);
+        const toInputVal = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        const now = new Date();
+        const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        Swal.fire({
+            title: '匯出 Excel',
+            html: `<div style="display:flex; flex-direction:column; gap:4px; text-align:left;">
+                    <label style="font-size:0.9em; color:#666;">起始日期</label>
+                    <input type="date" id="export-start" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${toInputVal(firstOfMonth)}">
+                    <label style="font-size:0.9em; color:#666; margin-top:8px;">結束日期</label>
+                    <input type="date" id="export-end" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" value="${toInputVal(now)}">
+                </div>`,
+            showCancelButton: true,
+            confirmButtonText: '匯出',
+            cancelButtonText: '取消',
+            showLoaderOnConfirm: true,
+            heightAuto: false,
+            preConfirm: async () => {
+                const s = document.getElementById('export-start').value;
+                const e = document.getElementById('export-end').value;
+                if (!s || !e) return Swal.showValidationMessage('請選擇起訖日期');
+                const sd = new Date(s), ed = new Date(e);
+                if (sd > ed) return Swal.showValidationMessage('起始日期不可晚於結束日期');
+                try {
+                    let list;
+                    if (isOnline) {
+                        list = await fetchOrdersInRange(sd, ed);
+                    } else {
+                        const sNum = dateNum(sd.toLocaleDateString('zh-TW'));
+                        const eNum = dateNum(ed.toLocaleDateString('zh-TW'));
+                        list = orders.filter(o => { const n = dateNum(o.d); return n >= sNum && n <= eNum; });
+                    }
+                    if (list.length === 0) return Swal.showValidationMessage('此區間沒有訂單資料');
+                    return { list, s, e };
+                } catch (err) {
+                    return Swal.showValidationMessage('讀取失敗: ' + err.message);
+                }
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+        }).then(res => {
+            if (!res.isConfirmed || !res.value) return;
+            const data = res.value.list.map(o => ({ "日期": o.d, "時間": o.t, "桌號": o.table||'', "總額": o.total, "毛利": o.profit, "支付方式": o.pay, "備註": o.note, "商品明細": (o.items || []).map(i=>i.n + (i.comboDetail ? `[${i.comboDetail}]` : '')).join(',') }));
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Sales");
+            XLSX.writeFile(wb, `Sales_Export_${res.value.s}_${res.value.e}.xlsx`);
+            notyf.success(`已匯出 ${res.value.list.length} 筆訂單`);
+        });
     }
 </script>
 </body>
