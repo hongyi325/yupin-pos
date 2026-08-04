@@ -611,6 +611,7 @@
             <div id="td-modal-info" style="background:#FDFCF9; padding:16px; border-radius:12px; font-weight:600; margin-bottom:12px; flex-shrink:0; border:1px solid var(--border-soft);"></div>
             <div id="td-modal-items" style="flex:1; border-radius:12px; background:var(--bg-body); padding: 8px;"></div>
         </div>
+        <button onclick="clearCurrentDetailsTable()" class="btn-submit" style="flex-shrink:0; background:var(--danger-red); box-shadow: 0 8px 20px rgba(217, 108, 108, 0.25);"><i class="ph-bold ph-broom"></i> 清空此桌</button>
     </div>
 </div>
 
@@ -812,6 +813,13 @@
             window.scrollTo(0, 0);
         }, 100);
     });
+
+    // === 功能開關 ===
+    // 桌位倒數計時（90/120 分鐘警示區、桌卡與明細隨時間變色）。
+    // 要重新啟用改成 true 即可，相關程式碼與資料欄位（ack90/ack120）均保留未刪。
+    const ENABLE_TABLE_TIMERS = false;
+    // 關閉時整個警示容器隱藏，避免手機版（order:-1 置頂）殘留空白間距
+    if (!ENABLE_TABLE_TIMERS) document.getElementById('alerts-container').style.display = 'none';
 
     const firebaseConfig = {
         apiKey: "AIzaSyAomzzRW15uwRZ91jhgH6ZRFZA-ldT1iXY",
@@ -1372,8 +1380,8 @@
             if (tableData && tableData.items && tableData.items.length > 0) {
                 const elapsedMins = Math.floor((now - tableData.startTime) / 60000);
 
-                // 產生 Alerts HTML (以 Checkbox 方式呈現)
-                if (elapsedMins >= 120 && !tableData.ack120) {
+                // 產生 Alerts HTML (以 Checkbox 方式呈現)；倒數計時功能關閉時不產生警示
+                if (ENABLE_TABLE_TIMERS && elapsedMins >= 120 && !tableData.ack120) {
                     has120 = true;
                     alerts120Html += `
                         <div class="alert-item">
@@ -1383,7 +1391,7 @@
                                 <span style="color:var(--danger-red);">完成清空</span>
                             </label>
                         </div>`;
-                } else if (elapsedMins >= 90 && elapsedMins < 120 && !tableData.ack90) {
+                } else if (ENABLE_TABLE_TIMERS && elapsedMins >= 90 && elapsedMins < 120 && !tableData.ack90) {
                     has90 = true;
                     alerts90Html += `
                         <div class="alert-item">
@@ -1396,8 +1404,10 @@
                 }
 
                 let colorClass = 't-green';
-                if (elapsedMins >= 120) colorClass = 't-red-blink';
-                else if (elapsedMins >= 90) colorClass = 't-yellow';
+                if (ENABLE_TABLE_TIMERS) {
+                    if (elapsedMins >= 120) colorClass = 't-red-blink';
+                    else if (elapsedMins >= 90) colorClass = 't-yellow';
+                }
 
                 let totalItems = tableData.items.length;
                 let unservedItems = tableData.items.filter(it => !it.served).length;
@@ -1427,13 +1437,23 @@
         box120.style.display = has120 ? 'flex' : 'none';
     }
 
+    let currentDetailsTable = null; // 桌況明細目前顯示的桌號（供「清空此桌」按鈕使用）
+
+    function clearCurrentDetailsTable() {
+        if (currentDetailsTable) clearTable(currentDetailsTable);
+    }
+
     function openTableDetails(tName) {
         const data = activeTables[tName];
         if(!data) return;
+        currentDetailsTable = tName;
 
         const elapsedMins = Math.floor((Date.now() - data.startTime) / 60000);
         const startStr = new Date(data.startTime).toLocaleTimeString('zh-TW', {hour12:false});
-        let colorStyle = elapsedMins >= 120 ? 'color:var(--danger-red);' : (elapsedMins >= 90 ? 'color:#D69E2E;' : 'color:var(--accent-green);');
+        let colorStyle = 'color:var(--accent-green);';
+        if (ENABLE_TABLE_TIMERS) {
+            colorStyle = elapsedMins >= 120 ? 'color:var(--danger-red);' : (elapsedMins >= 90 ? 'color:#D69E2E;' : 'color:var(--accent-green);');
+        }
 
         let unservedCount = data.items.filter(it => !it.served).length;
         let allServed = unservedCount === 0 && data.items.length > 0;
