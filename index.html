@@ -435,10 +435,14 @@
             /* 隱藏桌面版的 今日紀錄 */
             #log-card-container { display: none; }
 
-            /* 模態框手機版改為 Bottom Sheet */
-            .modal-overlay { align-items: flex-end; padding: 0; }
-            .modal-content { border-radius: 24px 24px 0 0; margin: 0; max-height: 90vh; animation: slideUpMobile 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); padding: 20px; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
-            @keyframes slideUpMobile { from { transform: translateY(100%); } to { transform: translateY(0); } }
+            /* 模態框手機版：置中卡片（與桌機/iPad 一致），四周留邊不佔滿全螢幕 */
+            .modal-overlay {
+                align-items: center;
+                padding: 14px;
+                padding-top: max(14px, env(safe-area-inset-top));
+                padding-bottom: max(14px, env(safe-area-inset-bottom));
+            }
+            .modal-content { border-radius: var(--radius-lg); margin: 0; max-height: 92%; padding: 16px; }
 
             /* 管理中心 Grid 比例調整 */
             .admin-layout { grid-template-columns: 1fr; grid-template-rows: minmax(0, 65fr) minmax(0, 35fr); gap: 12px; min-height: 0; }
