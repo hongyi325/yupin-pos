@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>御品泡茶體驗</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8D%B5%3C/text%3E%3C/svg%3E">
 
     <!-- 所有 CDN 依賴均鎖定精確版本並附 SRI (integrity)；升版時需重新計算雜湊 -->
     <!-- 引入 Firebase v8 -->
@@ -41,6 +42,8 @@
             --radius-md: 14px;
             --radius-lg: 20px;
             --radius-pill: 999px;
+            --radius-full: 999px;
+            --shadow-sm: 0 2px 8px rgba(60, 54, 51, 0.05);
             --font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
             /* 補回舊版變數映射 */
@@ -245,7 +248,8 @@
 
         /* Panels / Modals */
         .modal-overlay {
-            position: fixed; inset: 0; background: rgba(30, 26, 24, 0.4); z-index: 15000;
+            /* 不用 inset:0 —— 舊版 iPad Safari (<14.5) 不支援，會導致整個 modal 跑版 */
+            position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: rgba(30, 26, 24, 0.4); z-index: 15000;
             display: none; justify-content: center; align-items: center; backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px); padding: 20px; box-sizing: border-box;
         }
@@ -271,12 +275,15 @@
         /* --- 管理中心 Grid --- */
         .admin-layout {
             display: grid;
-            grid-template-columns: 2.5fr 1fr;
+            /* 排名欄保底 240px，避免窄視窗時品名被擠成直排；左欄可縮（主表格自身可橫向捲動） */
+            grid-template-columns: minmax(0, 2.5fr) minmax(240px, 1fr);
             gap: 20px; flex: 1; overflow: hidden; min-height: 0;
         }
         .admin-actions { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
         .admin-table-container { flex: 1; overflow: auto; border: 1px solid var(--border-soft); border-radius: var(--radius-md); background: white; overscroll-behavior: none; -webkit-overflow-scrolling: touch; min-width: 0; min-height: 0; }
-        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        table { width: 100%; border-collapse: collapse; }
+        /* 只有商品主表格需要保底寬度（容器可橫向捲動）；勿套用到銷售排名等窄容器內的表格 */
+        .admin-table-container table { min-width: 600px; }
         th { background: #F2EFEA; position: sticky; top: 0; padding: 0 14px; border-bottom: 1px solid var(--border-soft); z-index: 5; font-weight: 600; color: var(--text-main); text-align: left; height: 50px; box-sizing: border-box; }
         td { padding: 10px 14px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
         .cat-header-row td { position: sticky; top: 49px; z-index: 4; background: #FDFCF9; border-bottom: 2px solid var(--border-soft); box-shadow: 0 2px 6px rgba(0,0,0,0.03); box-sizing: border-box; }
@@ -320,7 +327,7 @@
         .combo-option.disabled { opacity: 0.5; background: var(--bg-body); cursor: not-allowed; pointer-events: none; }
 
         /* History Items */
-        .history-card { background: white; border: 1px solid var(--border-soft); padding: 16px; border-radius: var(--radius-md); margin-bottom: 12px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+        .history-card { background: white; border: 1px solid var(--border-soft); padding: 16px; border-radius: var(--radius-md); margin-bottom: 12px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; word-break: break-word; }
         .history-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; gap: 12px;}
         .history-del-btn { color: var(--danger-red); cursor: pointer; font-weight: 600; border: 1px solid #FED7D7; padding: 6px 12px; border-radius: 8px; font-size: 0.85em; background: #FFF5F5; display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: 0.2s; flex-shrink: 0; min-height: 36px; }
         .history-del-btn:active { transform: scale(0.95); }
@@ -352,7 +359,7 @@
         body.swal2-shown { padding-right: 0 !important; overflow: hidden !important; }
 
         /* Refined Login Overlay Styles */
-        #login-overlay { position: fixed; inset: 0; background: var(--bg-body); z-index: 10000; display: flex; justify-content: center; align-items: center; }
+        #login-overlay { position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: var(--bg-body); z-index: 10000; display: flex; justify-content: center; align-items: center; }
         .login-card-ui { background: white; padding: 40px 32px; border-radius: 24px; box-shadow: var(--shadow-float); text-align: center; width: 90%; max-width: 380px; box-sizing: border-box; border: 1px solid var(--border-soft); }
         .login-card-ui h2 { margin-top: 0; color: var(--text-main); margin-bottom: 24px; font-size: 1.6em; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .login-input-wrapper { position: relative; margin-bottom: 20px; width: 100%; }
@@ -404,7 +411,7 @@
             .alerts-area { order: -1; width: 100%; margin-bottom: 16px; }
 
             .checkout-area {
-                position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 5000;
+                position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: rgba(0,0,0,0.4); z-index: 5000;
                 backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
                 display: flex; flex-direction: column; justify-content: flex-end;
                 opacity: 0; pointer-events: none; transition: opacity 0.3s;
@@ -434,7 +441,7 @@
             @keyframes slideUpMobile { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
             /* 管理中心 Grid 比例調整 */
-            .admin-layout { grid-template-columns: 1fr; grid-template-rows: 65% 35%; gap: 12px; min-height: 0; }
+            .admin-layout { grid-template-columns: 1fr; grid-template-rows: minmax(0, 65fr) minmax(0, 35fr); gap: 12px; min-height: 0; }
             .admin-ranking-box { padding: 12px; }
             .admin-actions { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 8px; -webkit-overflow-scrolling: touch; }
             .admin-actions button { white-space: nowrap; flex-shrink: 0; }
@@ -660,7 +667,7 @@
             <div class="admin-ranking-box">
                 <h3 style="margin-top:0; margin-bottom:12px; color:var(--text-main); display:flex; align-items:center; gap:8px; flex-shrink: 0; font-size:1.1em;"><i class="ph-bold ph-chart-line-up"></i> 本月銷售排名</h3>
                 <div class="admin-ranking-inner">
-                    <table style="font-size:0.95em; width:100%; border-collapse: collapse; white-space: nowrap;">
+                    <table style="font-size:0.95em; width:100%; border-collapse: collapse; word-break: break-word;">
                         <thead style="position: sticky; top: 0; background: #FDFCF9; z-index: 2;">
                         <tr>
                             <th style="border-bottom:2px solid #E2DED9; padding-bottom:8px; text-align: left;">品名</th>
@@ -1508,6 +1515,29 @@
     function closeModal(id) {
         document.getElementById(id).style.display = 'none';
     }
+
+    // --- Modal 通用關閉行為（比照瀏覽器預設 dialog）：點背景或按 Esc 關閉 ---
+    document.querySelectorAll('.modal-overlay').forEach(ov => {
+        // 記錄按下的起點，避免在輸入框內拖曳選字、放開時滑出背景而誤關視窗
+        ov.addEventListener('pointerdown', e => { ov._downOnOverlay = (e.target === ov); });
+        ov.addEventListener('click', e => {
+            if (e.target === ov && ov._downOnOverlay) closeModal(ov.id);
+            ov._downOnOverlay = false;
+        });
+    });
+
+    document.addEventListener('keydown', e => {
+        if (e.key !== 'Escape') return;
+        if (document.querySelector('.swal2-container')) return; // SweetAlert 開啟時交給它自己處理
+        const open = [...document.querySelectorAll('.modal-overlay')]
+            .filter(o => getComputedStyle(o).display !== 'none');
+        if (open.length) {
+            closeModal(open[open.length - 1].id); // DOM 順序即堆疊順序，關最上層
+            return;
+        }
+        const drawer = document.getElementById('checkout-drawer');
+        if (window.innerWidth <= 768 && drawer && drawer.classList.contains('is-open')) toggleMobileCart(false);
+    });
 
     function openHistoryPanel() {
         const today = new Date();
@@ -2437,7 +2467,7 @@
         const stats = {};
         orders.forEach(o => { o.items.forEach(it => { if(it.id === "支出") return; if(!stats[it.n]) stats[it.n] = { qty: 0, amt: 0 }; stats[it.n].qty += 1; stats[it.n].amt += it.p; }); });
         const sorted = Object.entries(stats).sort((a,b) => b[1].qty - a[1].qty);
-        document.getElementById('stat-tbody').innerHTML = sorted.map(([name, data]) => `<tr style="background:white;"><td style="text-align:left; font-weight:600; color:var(--text-main); padding: 8px;">${esc(name)}</td><td style="padding: 8px; text-align:center;"><span style="background:var(--bg-body); padding:4px 8px; border-radius:6px; font-weight:600;">${data.qty}</span></td><td style="color:var(--primary); font-weight:700; padding: 8px; text-align:center;">$${data.amt}</td></tr>`).join('');
+        document.getElementById('stat-tbody').innerHTML = sorted.map(([name, data]) => `<tr style="background:white;"><td style="text-align:left; font-weight:600; color:var(--text-main); padding: 8px;">${esc(name)}</td><td style="padding: 8px; text-align:center; white-space:nowrap;"><span style="background:var(--bg-body); padding:4px 8px; border-radius:6px; font-weight:600;">${data.qty}</span></td><td style="color:var(--primary); font-weight:700; padding: 8px; text-align:center; white-space:nowrap;">$${data.amt}</td></tr>`).join('');
     }
 
     async function backupData() {
