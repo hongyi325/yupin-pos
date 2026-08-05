@@ -2261,6 +2261,13 @@
 
         const total = Number(document.getElementById('final-total').innerText);
         const hf = calcHeadFee();
+
+        // 防呆：新開桌的單必須明確填寫人數（填 0 表示不收人頭費，如純外帶/支出）；已開桌加點不檢查
+        if (!hf.isAddOn && document.getElementById('head-count').value.trim() === '') {
+            toggleMobileCart(true);
+            return notyf.error('請輸入用餐人數！（外帶或純支出可填 0）');
+        }
+
         const feeLine = hf.fee > 0 ? `<br>人頭費: <b>${hf.chargeCount} 位 × $${HEAD_FEE}</b>（折抵 $${hf.credit}）` : '';
 
         Swal.fire({
