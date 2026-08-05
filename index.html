@@ -380,7 +380,7 @@
         .td-item-row { padding: 14px 12px; border-bottom: 1px solid var(--border-soft); display: flex; justify-content: space-between; align-items: center; transition: 0.3s; background: white; border-radius: 8px; margin-bottom: 6px; }
         .td-item-row.is-served { opacity: 0.5; background: transparent; border-color: transparent; }
         .td-item-right { display: flex; align-items: center; gap: 16px; }
-        .serve-cb-wrapper { display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 8px 14px; background: var(--bg-body); border-radius: var(--radius-pill); border: 1px solid #E2DED9; user-select: none; transition: 0.2s; font-weight: 600; min-height: 40px;}
+        .serve-cb-wrapper { display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 8px 14px; background: var(--bg-body); border-radius: 10px; border: 1px solid #E2DED9; user-select: none; transition: 0.2s; font-weight: 600; min-height: 40px;}
         .serve-cb { width: 20px; height: 20px; accent-color: var(--accent-green); cursor: pointer; margin: 0; }
         .serve-cb-wrapper.served { border-color: var(--accent-green); background: #F0FDF4; color: var(--accent-green); }
 
@@ -1474,7 +1474,7 @@
             </div>
         `).join('');
 
-        document.getElementById('td-modal-title').innerHTML = `<i class="ph-bold ph-armchair"></i> 桌號 ${tName} - 全單明細`;
+        document.getElementById('td-modal-title').innerHTML = `<i class="ph-bold ph-armchair"></i> 桌號 ${tName} - 明細`;
         document.getElementById('td-modal-info').innerHTML = `
             <div style="display:flex; justify-content:space-between; font-size:1.05em;">
                 <span>入座：${startStr}</span>
