@@ -1056,6 +1056,10 @@
     });
 
     // 登入狀態監聽：已登入才顯示系統並載入資料；未登入則顯示登入層
+    // 資料載入後若被登出（如閒置自動登出），Firebase 會因權限消失而取消所有 .on() 即時監聽，
+    // 且重新登入後不會自動恢復。此時畫面上的桌況、庫存、掃碼訂單都不會再更新，
+    // 所以重新登入時直接重新載入頁面，以乾淨狀態重新訂閱。
+    let listenersLostOnLogout = false;
     if (isOnline && firebase.auth) {
         firebase.auth().onAuthStateChanged(user => {
             if (user) {
@@ -1065,10 +1069,15 @@
                     return;
                 }
                 touchActivity(true); // 登入 (或還原登入) 視為一次操作
+                if (listenersLostOnLogout) {
+                    location.reload();
+                    return;
+                }
                 document.getElementById('login-overlay').style.display = 'none';
                 document.getElementById('login-pwd-input').value = '';
                 if (inv.length === 0) loadData();
             } else {
+                if (inv.length > 0) listenersLostOnLogout = true;
                 document.getElementById('login-overlay').style.display = 'flex';
             }
         });
