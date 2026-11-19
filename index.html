@@ -25,6 +25,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/bold/style.css" integrity="sha384-nblAP2mo2pVPyMQZDw9Xy9Cwgs9lowushAYep4w5+Q9kF4Ibf3n0B/gCMVdR+Vqy" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css" integrity="sha384-pPVoXE8ft+zxKtxIDDI7SfTK6y95NHm4qa+hKEg/hs8VkjW5IP+9/dGOPCbDpUPl" crossorigin="anonymous">
 
+    <!-- 引入 qrcode-generator 用於產生桌邊點餐 QR Code（載入失敗時該視窗仍會顯示網址） -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous"></script>
+
     <style>
         /* 現代化色彩與設計系統 Token */
         :root {
@@ -106,6 +109,50 @@
             0% { box-shadow: 0 0 0 0 rgba(217, 108, 108, 0.6); }
             70% { box-shadow: 0 0 0 10px rgba(217, 108, 108, 0); }
             100% { box-shadow: 0 0 0 0 rgba(217, 108, 108, 0); }
+        }
+
+        /* 結帳區：用餐人數 / 其中國小以下 兩欄並排 */
+        .count-row { display: flex; gap: 8px; margin-bottom: 4px; }
+        .count-field { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 0.85em; font-weight: 600; color: var(--text-muted); }
+        .count-field .big-input { text-align: left; font-size: 1.2em !important; margin: 0; }
+
+        /* 掃碼訂單按鈕：有待結帳的單時轉紅並閃爍 */
+        .qr-nav-btn { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-soft); box-shadow: var(--shadow-soft); }
+        .qr-nav-btn .qr-badge { background: var(--bg-body); color: var(--text-muted); border-radius: 12px; padding: 2px 8px; font-size: 0.9em; font-weight: 700; }
+        .qr-nav-btn.has-data { background: var(--danger-red); color: white; border-color: var(--danger-red); animation: pulse 2s infinite; }
+        .qr-nav-btn.has-data .qr-badge { background: white; color: var(--danger-red); }
+
+        /* 掃碼訂單清單 */
+        .qr-order-card { background: white; border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow-sm); word-break: break-word; }
+        .qr-order-card.is-loaded { border-color: var(--accent-green); background: #F0FDF4; }
+        .qr-order-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+        .qr-order-items { margin: 10px 0; color: var(--text-main); line-height: 1.6; }
+        .qr-order-actions { display: flex; gap: 10px; }
+        .qr-order-actions button { min-height: 44px; border-radius: var(--radius-pill); font-weight: 700; font-size: 1em; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; }
+        .qr-order-actions .qr-load-btn { flex: 1; background: var(--accent-green); color: white; border: none; }
+        .qr-order-actions .qr-load-btn:disabled { background: #C9C5C0; cursor: default; }
+        .qr-order-actions .qr-del-btn { background: #FFF5F5; color: var(--danger-red); border: 1px solid #FED7D7; }
+
+        /* 桌邊 QR Code 列印頁 */
+        .qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+        .qr-card { background: white; border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 16px; text-align: center; }
+        .qr-card-title { font-size: 1.4em; font-weight: 800; color: var(--text-main); }
+        .qr-card-code { width: 150px; max-width: 100%; margin: 10px auto; }
+        .qr-card-code svg { display: block; width: 100%; height: auto; }
+        .qr-card-hint { font-weight: 600; color: var(--primary); }
+        .qr-card-url { font-size: 0.7em; color: var(--text-muted); word-break: break-all; margin-top: 6px; }
+
+        @media print {
+            /* 只在「桌邊 QR Code」視窗開啟時（html.print-qr）改成純列印版面 */
+            html.print-qr, html.print-qr body { height: auto !important; overflow: visible !important; display: block !important; background: white !important; }
+            html.print-qr body > *:not(#qr-codes-modal) { display: none !important; }
+            html.print-qr #qr-codes-modal { position: static !important; display: block !important; background: none !important; padding: 0 !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+            html.print-qr #qr-codes-modal .modal-content { display: block; max-width: none; width: auto; height: auto; max-height: none; padding: 0; box-shadow: none; background: white; animation: none; }
+            html.print-qr #qr-codes-modal .modal-body-scroll { display: block; overflow: visible; padding: 0; }
+            html.print-qr .no-print { display: none !important; }
+            html.print-qr .qr-grid { grid-template-columns: repeat(3, 1fr); gap: 0; }
+            html.print-qr .qr-card { border: 1px dashed #999; border-radius: 0; break-inside: avoid; page-break-inside: avoid; padding: 20px 12px; }
+            html.print-qr .qr-card-code { width: 62%; }
         }
 
         /* Main Layout */
@@ -494,6 +541,17 @@
             #cart-list { margin-bottom: 20px; margin-top: 20px; }
         }
 
+        /* 手機直向：導覽列塞不下四個文字按鈕，收緊間距並把掃碼訂單縮成圖示 */
+        @media (max-width: 480px) {
+            .nav-bar { gap: 8px; padding: 12px; }
+            .nav-bar > div { display: none; } /* 撐開用的空白元素；雲端同步本身有 margin-left:auto */
+            .nav-bar .dash-btn, .nav-bar .sync-btn { padding: 10px 12px; }
+            .qr-nav-btn { min-width: 44px; }
+            .qr-nav-btn .qr-nav-label { display: none; }
+            .qr-nav-btn:not(.has-data) .qr-badge { display: none; }
+            .count-row { margin: 12px 0; }
+        }
+
         @media (min-width: 769px) { .mobile-drawer-header { display: none; } }
 
     </style>
@@ -515,6 +573,7 @@
 <div class="nav-bar">
     <button id="btn-nav-menu" class="dash-btn" onclick="toggleView('products')" style="background:var(--primary); color:white; border:none;"><i class="ph-bold ph-list"></i> 主選單</button>
     <button id="btn-nav-tables" class="dash-btn" onclick="toggleView('tables')" style="background:var(--bg-card); color:var(--text-main); border:1px solid var(--border-soft);"><i class="ph-bold ph-armchair"></i> 門市桌況</button>
+    <button id="btn-qr-orders" class="dash-btn qr-nav-btn" onclick="openQrOrders()" aria-label="掃碼訂單" title="掃碼訂單"><i class="ph-bold ph-qr-code"></i> <span class="qr-nav-label">掃碼訂單</span> <span class="qr-badge" id="qr-badge">0</span></button>
     <div style="flex:1;"></div>
     <button id="sync-btn" class="sync-btn" onclick="syncOfflineData()"><i class="ph-bold ph-cloud-arrow-up"></i> 雲端同步</button>
 </div>
@@ -546,7 +605,16 @@
 
                 <div id="cart-list"></div>
                 <div style="margin-top:12px; flex-shrink: 0;">
-                    <input type="number" id="head-count" class="big-input" placeholder="用餐人數（計算人頭費）" oninput="calc()" min="0" style="font-size: 1.2em; text-align: left;">
+                    <div class="count-row">
+                        <label class="count-field">
+                            <span>用餐人數</span>
+                            <input type="number" id="head-count" class="big-input" placeholder="含孩童" oninput="calc()" min="0" inputmode="numeric">
+                        </label>
+                        <label class="count-field">
+                            <span>其中國小以下</span>
+                            <input type="number" id="kid-count" class="big-input" placeholder="免人頭費" oninput="calc()" min="0" inputmode="numeric">
+                        </label>
+                    </div>
                     <div id="fee-summary" style="display:none; font-size:0.9em; font-weight:600; color:var(--primary); padding:4px 4px 8px;"></div>
                     <input type="number" id="discount" class="big-input" placeholder="折扣金額" oninput="calc()" style="font-size: 1.2em; text-align: left;">
                     <input type="text" id="discount-note" class="small-note" placeholder="折扣原因/備註 (例如: 滿額贈)">
@@ -617,6 +685,18 @@
     </div>
 </div>
 
+<!-- 掃碼訂單 Modal：客人用 order.html 送出、尚未結帳的待收款單 -->
+<div id="qr-orders-modal" class="modal-overlay">
+    <div class="modal-content modal-small">
+        <div class="modal-header-modern">
+            <h2><i class="ph-bold ph-qr-code"></i> 掃碼訂單</h2>
+            <button class="close-icon-btn" onclick="closeModal('qr-orders-modal')"><i class="ph-bold ph-x"></i></button>
+        </div>
+        <div style="color:var(--text-muted); font-size:0.9em; margin-bottom:12px; flex-shrink:0;">客人到櫃檯後，按「載入購物車」確認人數與品項，再照平常方式結帳。</div>
+        <div id="qr-orders-list" class="modal-body-scroll"></div>
+    </div>
+</div>
+
 <!-- History Modal -->
 <div id="history-panel" class="modal-overlay">
     <div class="modal-content">
@@ -653,6 +733,7 @@
             <button onclick="openAddSingleModal()" class="dash-btn" style="background:var(--accent-green);"><i class="ph-bold ph-plus-circle"></i> 新增單品</button>
             <button onclick="openAddComboModal()" class="dash-btn" style="background:#D97706;"><i class="ph-bold ph-squares-four"></i> 新增套餐</button>
             <button onclick="setTableCount()" class="dash-btn" style="background:#4A90E2;"><i class="ph-bold ph-hash"></i> 設定桌數</button>
+            <button onclick="openQrCodes()" class="dash-btn" style="background:#6B7280;"><i class="ph-bold ph-qr-code"></i> 桌邊 QR Code</button>
 
             <div style="margin-left:auto; display:flex; gap:12px;">
                 <button onclick="exportToExcel()" class="dash-btn" style="background:#2F855A;"><i class="ph-bold ph-download-simple"></i> 匯出</button>
@@ -687,6 +768,21 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- 桌邊 QR Code Modal（從管理中心開啟，DOM 順序需排在 admin-panel 之後才會疊在上層） -->
+<div id="qr-codes-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header-modern no-print">
+            <h2><i class="ph-bold ph-qr-code"></i> 桌邊 QR Code</h2>
+            <button class="close-icon-btn" onclick="closeModal('qr-codes-modal')"><i class="ph-bold ph-x"></i></button>
+        </div>
+        <div class="admin-actions no-print" style="align-items:center;">
+            <button onclick="window.print()" class="dash-btn"><i class="ph-bold ph-printer"></i> 列印</button>
+            <span style="color:var(--text-muted); font-size:0.9em;">每桌一張，客人掃描後即可點餐；桌數請用「設定桌數」調整。</span>
+        </div>
+        <div class="modal-body-scroll"><div class="qr-grid" id="qr-codes-grid"></div></div>
     </div>
 </div>
 
@@ -857,6 +953,11 @@
     let ALL_TABLES = Array.from({length: tableCount}, (_, i) => (i + 1).toString());
     let activeTables = {}; // 追蹤正在使用中的桌子
 
+    // 掃碼點餐（order.html）：客人送出、尚未結帳的待收款單
+    let qrOrders = [];
+    let qrOrdersLoaded = false;
+    let loadedQrKeys = []; // 已載入購物車的待收款單 key；結帳成功時在同一批次寫入中刪除
+
     const defaultInv = [
         { cat: "招牌玩偶", items: [{id: "A01", n: "經典小熊", c: 100, p: 250, s: 10, type: "item"}] },
         { cat: "飲品", items: [
@@ -955,6 +1056,10 @@
     });
 
     // 登入狀態監聽：已登入才顯示系統並載入資料；未登入則顯示登入層
+    // 資料載入後若被登出（如閒置自動登出），Firebase 會因權限消失而取消所有 .on() 即時監聽，
+    // 且重新登入後不會自動恢復。此時畫面上的桌況、庫存、掃碼訂單都不會再更新，
+    // 所以重新登入時直接重新載入頁面，以乾淨狀態重新訂閱。
+    let listenersLostOnLogout = false;
     if (isOnline && firebase.auth) {
         firebase.auth().onAuthStateChanged(user => {
             if (user) {
@@ -964,10 +1069,15 @@
                     return;
                 }
                 touchActivity(true); // 登入 (或還原登入) 視為一次操作
+                if (listenersLostOnLogout) {
+                    location.reload();
+                    return;
+                }
                 document.getElementById('login-overlay').style.display = 'none';
                 document.getElementById('login-pwd-input').value = '';
                 if (inv.length === 0) loadData();
             } else {
+                if (inv.length > 0) listenersLostOnLogout = true;
                 document.getElementById('login-overlay').style.display = 'flex';
             }
         });
@@ -1116,13 +1226,18 @@
             db.ref('inventory').on('value', snap => {
                 inv = snap.val() || defaultInv;
                 initUI();
+                publishPublicMenu();
+                renderQrOrders(); // 掃碼訂單的品名與價格是從 inventory 帶出來的
             });
             subscribeCurrentMonthOrders();
             db.ref('active_tables').on('value', snap => {
                 activeTables = snap.val() || {};
                 renderTableDashboard();
                 calc(); // 桌況變動會影響「已開桌加點免人頭費」的判斷
+                publishPublicTables();
+                renderQrOrders();
             });
+            db.ref('qr_orders').on('value', snap => handleQrOrdersSnapshot(snap.val() || {}));
             // 同步遠端桌數設定
             db.ref('table_count').on('value', snap => {
                 if(snap.exists()) {
@@ -1133,6 +1248,7 @@
                     if(document.getElementById('table-area').style.display !== 'none') {
                         renderTableDashboard();
                     }
+                    publishPublicMenu(); // 公開菜單內含桌數，客人頁用來檢查桌號是否存在
                 }
             });
         } else {
@@ -1174,6 +1290,7 @@
 
                 if (isOnline) {
                     db.ref('table_count').set(tableCount);
+                    publishPublicMenu();
                 }
 
                 initTableSelect();
@@ -1545,6 +1662,7 @@
     }
     function closeModal(id) {
         document.getElementById(id).style.display = 'none';
+        if (id === 'qr-codes-modal') document.documentElement.classList.remove('print-qr');
     }
 
     // --- Modal 通用關閉行為（比照瀏覽器預設 dialog）：點背景或按 Esc 關閉 ---
@@ -2173,7 +2291,8 @@
 
     function findItemById(id) {
         for (let c of inv) {
-            for (let i of c.items) {
+            // 空分類在 Firebase 不會存 items（空陣列會被省略），需防呆
+            for (let i of (c.items || [])) {
                 if (i.id === id) return i;
             }
         }
@@ -2181,6 +2300,11 @@
     }
 
     function renderCart() {
+        // 購物車清空後，先前載入的掃碼訂單就不再與這次結帳綁定
+        if (!cart.length && loadedQrKeys.length) {
+            loadedQrKeys = [];
+            renderQrOrders();
+        }
         document.getElementById('cart-list').innerHTML = cart.map((it, i) => `
             <div class="cart-item">
                 <div style="flex:1;">
@@ -2197,20 +2321,23 @@
     }
 
     // 人頭費規則：每人 $150、可折抵店內消費 $60（折抵上限為實際消費，不退差額）；
-    // 有「免人頭費」標記的套餐一份抵一位；已開桌的加點不再收人頭費
+    // 國小以下孩童免收（用餐人數含孩童，另填「其中國小以下」幾位）；
+    // 有「免人頭費」標記的套餐一份抵一位；已開桌的加點不再收人頭費。
+    // ⚠️ 客人點餐頁 order.html 的 calcTotals() 用同一套規則做預估，改這裡時要一起改
     const HEAD_FEE = 150;
     const HEAD_FEE_CREDIT = 60;
 
     function calcHeadFee() {
         const cartSum = cart.reduce((a,b)=>a+b.p, 0);
         const people = Math.max(0, Math.floor(Number(document.getElementById('head-count').value || 0)));
+        const kids = Math.min(people, Math.max(0, Math.floor(Number(document.getElementById('kid-count').value || 0))));
         const tSel = document.getElementById('checkout-table').value;
         const isAddOn = !!(tSel && activeTables[tSel]);
         const exemptCount = cart.filter(it => it.exemptFee).length;
-        const chargeCount = isAddOn ? 0 : Math.max(0, people - exemptCount);
+        const chargeCount = isAddOn ? 0 : Math.max(0, people - kids - exemptCount);
         const fee = HEAD_FEE * chargeCount;
         const credit = Math.min(HEAD_FEE_CREDIT * chargeCount, Math.max(0, cartSum));
-        return { people, isAddOn, exemptCount, chargeCount, fee, credit, cartSum };
+        return { people, kids, isAddOn, exemptCount, chargeCount, fee, credit, cartSum };
     }
 
     function calc() {
@@ -2226,7 +2353,10 @@
             sumEl.style.display = 'block';
             sumEl.innerHTML = `<i class="ph-bold ph-info"></i> 此桌已開桌（加點），不收人頭費`;
         } else if (hf.people > 0) {
-            const exemptText = hf.exemptCount > 0 ? `（套餐抵 ${Math.min(hf.exemptCount, hf.people)} 位）` : '';
+            const waived = [];
+            if (hf.kids > 0) waived.push(`國小以下 ${hf.kids} 位免收`);
+            if (hf.exemptCount > 0) waived.push(`套餐抵 ${Math.min(hf.exemptCount, hf.people - hf.kids)} 位`);
+            const exemptText = waived.length ? `（${waived.join('、')}）` : '';
             sumEl.style.display = 'block';
             sumEl.innerHTML = hf.chargeCount > 0
                 ? `<i class="ph-bold ph-users"></i> 人頭費 ${hf.chargeCount} 位 × $${HEAD_FEE} = $${hf.fee}，折抵 −$${hf.credit}${exemptText}`
@@ -2267,8 +2397,13 @@
             toggleMobileCart(true);
             return notyf.error('請輸入用餐人數！（外帶或純支出可填 0）');
         }
+        if (!hf.isAddOn && Number(document.getElementById('kid-count').value || 0) > hf.people) {
+            toggleMobileCart(true);
+            return notyf.error('國小以下人數不可超過用餐人數！');
+        }
 
-        const feeLine = hf.fee > 0 ? `<br>人頭費: <b>${hf.chargeCount} 位 × $${HEAD_FEE}</b>（折抵 $${hf.credit}）` : '';
+        const feeLine = (hf.fee > 0 ? `<br>人頭費: <b>${hf.chargeCount} 位 × $${HEAD_FEE}</b>（折抵 $${hf.credit}）` : '')
+            + (!hf.isAddOn && hf.kids > 0 ? `<br>國小以下: <b>${hf.kids} 位</b>（免人頭費）` : '');
 
         Swal.fire({
             title: '確認結帳?',
@@ -2308,9 +2443,16 @@
                     discount: Number(document.getElementById('discount').value || 0),
                     note: document.getElementById('discount-note').value,
                     people: hf.people,
+                    kids: hf.kids,
                     headFee: hf.fee,
                     headCredit: hf.credit
                 };
+                // 這張單含有客人掃碼送出的品項：標記來源，並在結帳成功的同一批次寫入中刪除待收款單
+                const qrKeys = isOnline ? [...loadedQrKeys] : [];
+                if (qrKeys.length) orderData.source = 'qr';
+                // 先解除綁定：下面的 update() 會同步觸發 qr_orders 的本機事件，
+                // 若此時 key 還在 loadedQrKeys，會被誤判成「已由其他裝置處理」
+                loadedQrKeys = [];
 
                 // Prepare Active Table Data
                 let newTableData = null;
@@ -2340,6 +2482,7 @@
                     if (newTableData) {
                         updates['/active_tables/' + selectedTable] = newTableData;
                     }
+                    qrKeys.forEach(k => { updates['/qr_orders/' + k] = null; });
 
                     // 使用 Firebase ServerValue.increment 避免競態條件 (Race Condition)
                     for (let subId in stockDeductions) {
@@ -2386,6 +2529,7 @@
 
                 cart=[];
                 document.getElementById('head-count').value = '';
+                document.getElementById('kid-count').value = '';
                 document.getElementById('discount').value = '';
                 document.getElementById('discount-note').value = '';
                 document.getElementById('cash-in').value = '';
@@ -2413,6 +2557,340 @@
                 }
             }
         });
+    }
+
+    // === 掃碼點餐（客人頁 order.html）===
+    // 客人頁沒有登入，讀不到 inventory / active_tables。由 POS 把「客人可以看的部分」投影到
+    // public_menu / public_tables（Rules 設為公開唯讀），客人送出的待收款單則寫進 qr_orders。
+    // 待收款單只帶品項 id 與套餐選項；品名、價格、成本一律由 POS 依自己的 inventory 帶入，
+    // 並且要經過店員「載入購物車 → 結帳」才會真正成為訂單（沿用 submitOrder 的原子批次寫入）。
+    const QR_ORDER_EXPIRE_MS = 12 * 60 * 60 * 1000; // 超過 12 小時沒處理的待收款單自動清掉
+    let lastPublicMenuJson = null;
+    let lastPublicTablesJson = null;
+
+    function buildPublicMenu() {
+        const soldOut = it => Number(it.s) <= 0;
+        const pubItem = it => {
+            const out = { id: String(it.id), n: String(it.n ?? ''), p: Number(it.p) || 0 };
+            if (it.type === 'combo') {
+                out.type = 'combo';
+                if (it.exemptFee) out.exempt = true;
+                out.groups = (it.comboSpecs || []).map(g => ({
+                    title: String(g.title ?? ''),
+                    options: (g.options || []).map(findItemById).filter(Boolean).map(o => {
+                        const opt = { id: String(o.id), n: String(o.n ?? '') };
+                        if (soldOut(o)) opt.so = true;
+                        return opt;
+                    })
+                }));
+                // 套餐沒有設定內容，或某一組已經沒有可選的品項 → 客人端顯示售完
+                if (!out.groups.length || out.groups.some(g => !g.options.some(o => !o.so))) out.so = true;
+            } else if (soldOut(it)) {
+                out.so = true;
+            }
+            return out;
+        };
+        return {
+            fee: HEAD_FEE,
+            credit: HEAD_FEE_CREDIT,
+            tables: tableCount,
+            cats: inv.map(c => ({ cat: String(c.cat ?? ''), items: (c.items || []).map(pubItem) }))
+        };
+    }
+
+    // 內容有變才寫入：庫存每賣一份就會觸發 inventory 事件，但公開菜單只在品項或售完狀態改變時才需要更新
+    function publishPublicMenu() {
+        if (!isOnline) return;
+        try {
+            const data = buildPublicMenu();
+            const json = JSON.stringify(data);
+            if (json === lastPublicMenuJson) return;
+            lastPublicMenuJson = json;
+            db.ref('public_menu').set(data).catch(e => { lastPublicMenuJson = null; console.warn('公開菜單發布失敗', e); });
+        } catch (e) {
+            console.warn('公開菜單發布失敗', e);
+        }
+    }
+
+    // 哪些桌已開桌：客人頁據此決定要不要先問人數（已開桌 = 加點）。判斷方式與 calcHeadFee() 的 isAddOn 相同
+    function publishPublicTables() {
+        if (!isOnline) return;
+        try {
+            const data = {};
+            Object.keys(activeTables).sort().forEach(t => { if (activeTables[t]) data[t] = true; });
+            const json = JSON.stringify(data);
+            if (json === lastPublicTablesJson) return;
+            lastPublicTablesJson = json;
+            db.ref('public_tables').set(data).catch(e => { lastPublicTablesJson = null; console.warn('公開桌況發布失敗', e); });
+        } catch (e) {
+            console.warn('公開桌況發布失敗', e);
+        }
+    }
+
+    // Firebase 的陣列若索引不連續會變成物件，統一轉回陣列
+    function qrArr(x) {
+        if (Array.isArray(x)) return x;
+        if (x && typeof x === 'object') return Object.values(x);
+        return [];
+    }
+
+    // 把待收款單的一個品項還原成購物車品項（與 addCartDirect / confirmComboSelection 產生的格式相同）。
+    // 找不到品項、或套餐選項已不在群組內時回傳 null。
+    function buildCartItemFromQr(raw) {
+        const item = raw ? findItemById(String(raw.id)) : null;
+        if (!item) return null;
+        if (item.type !== 'combo') return { ...item };
+
+        const specs = item.comboSpecs || [];
+        const sel = qrArr(raw.sel).map(String);
+        if (!specs.length || sel.length !== specs.length) return null;
+        const selection = {}, names = [], ids = [];
+        for (let g = 0; g < specs.length; g++) {
+            const target = (specs[g].options || []).includes(sel[g]) ? findItemById(sel[g]) : null;
+            if (!target) return null;
+            selection[specs[g].title] = sel[g];
+            names.push(target.n);
+            ids.push(sel[g]);
+        }
+        return { ...item, selection, comboDetail: names.join(' + '), comboDeductionIds: ids };
+    }
+
+    function handleQrOrdersSnapshot(data) {
+        const now = Date.now();
+        const list = [];
+        Object.keys(data).forEach(key => {
+            const o = data[key];
+            if (!o || typeof o !== 'object') return;
+            if (typeof o.ts === 'number' && now - o.ts > QR_ORDER_EXPIRE_MS) {
+                db.ref('qr_orders/' + key).remove().catch(() => {});
+                return;
+            }
+            list.push({ ...o, key });
+        });
+        list.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+
+        const known = new Set(qrOrders.map(o => o.key));
+        const fresh = list.filter(o => !known.has(o.key));
+        const isFirstSnapshot = !qrOrdersLoaded;
+        qrOrdersLoaded = true;
+        qrOrders = list;
+
+        // 已載入購物車的單被其他裝置結帳或刪除了：提醒店員，避免同一張單收兩次錢
+        const stillThere = loadedQrKeys.filter(k => list.some(o => o.key === k));
+        if (stillThere.length !== loadedQrKeys.length) {
+            loadedQrKeys = stillThere;
+            if (cart.length) notyf.open({ type: 'error', duration: 6000, message: '購物車裡的掃碼訂單已由其他裝置處理，請確認是否重複結帳' });
+        }
+
+        renderQrOrders();
+
+        // 開機時已存在的單只顯示數字，不逐筆提醒；之後新進來的才響鈴
+        if (!isFirstSnapshot && fresh.length) {
+            playQrChime();
+            const tables = [...new Set(fresh.map(o => String(o.table ?? '')))].join('、');
+            notyf.open({ type: 'success', duration: 5000, message: `桌號 ${esc(tables)} 有新的掃碼訂單` });
+        }
+    }
+
+    function renderQrOrders() {
+        const badge = document.getElementById('qr-badge');
+        const area = document.getElementById('qr-orders-list');
+        if (!badge || !area) return;
+        badge.innerText = qrOrders.length;
+        document.getElementById('btn-qr-orders').classList.toggle('has-data', qrOrders.length > 0);
+
+        if (!qrOrders.length) {
+            area.innerHTML = `<div style="color:var(--text-muted); text-align:center; padding:30px; background:var(--bg-body); border-radius:12px;">目前沒有待結帳的掃碼訂單</div>`;
+            return;
+        }
+
+        area.innerHTML = qrOrders.map((o, idx) => {
+            const parsed = qrArr(o.items).map(buildCartItemFromQr);
+            const okItems = parsed.filter(Boolean);
+            const missing = parsed.length - okItems.length;
+            const sum = okItems.reduce((a, it) => a + (Number(it.p) || 0), 0);
+
+            // 相同品項合併顯示數量
+            const groups = new Map();
+            okItems.forEach(it => {
+                const label = it.n + (it.comboDetail ? `[${it.comboDetail}]` : '');
+                groups.set(label, (groups.get(label) || 0) + 1);
+            });
+            const itemsHtml = [...groups].map(([label, qty]) => `${esc(label)}${qty > 1 ? ` <b>×${qty}</b>` : ''}`).join('<br>');
+
+            const table = String(o.table ?? '');
+            const tableOk = ALL_TABLES.includes(table);
+            const isAddOn = tableOk && !!activeTables[table];
+            const people = Math.floor(Number(o.people) || 0), kids = Math.floor(Number(o.kids) || 0);
+            const partyText = isAddOn ? '加點（不收人頭費）'
+                : people > 0 ? `${people} 位${kids > 0 ? `・國小以下 ${kids} 位` : ''}`
+                : '未填人數';
+            const timeText = typeof o.ts === 'number' ? new Date(o.ts).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' }) : '';
+            const isLoaded = loadedQrKeys.includes(o.key);
+
+            return `<div class="qr-order-card ${isLoaded ? 'is-loaded' : ''}">
+                <div class="qr-order-head">
+                    <strong style="font-size:1.2em; color:${tableOk ? 'var(--accent-green)' : 'var(--danger-red)'};">桌號 ${esc(table)}${tableOk ? '' : '（不存在）'}</strong>
+                    <span style="color:var(--text-muted); font-size:0.9em;"><i class="ph-bold ph-clock"></i> ${timeText}</span>
+                </div>
+                <div style="color:var(--primary); font-weight:600; margin-top:4px;"><i class="ph-bold ph-users"></i> ${partyText}</div>
+                <div class="qr-order-items">${itemsHtml || '<span style="color:var(--text-muted);">沒有可載入的品項</span>'}</div>
+                ${missing > 0 ? `<div style="color:var(--danger-red); font-size:0.9em; margin-bottom:8px;"><i class="ph-bold ph-warning"></i> 有 ${missing} 個品項已下架或套餐內容已變更</div>` : ''}
+                <div style="font-weight:700; margin-bottom:12px;">餐點小計 <span style="color:var(--primary);">$${sum}</span><span style="color:var(--text-muted); font-weight:500; font-size:0.9em;">（未含人頭費）</span></div>
+                <div class="qr-order-actions">
+                    <button class="qr-load-btn" onclick="loadQrOrder(${idx})" ${isLoaded || !tableOk || !okItems.length ? 'disabled' : ''}><i class="ph-bold ph-shopping-cart"></i> ${isLoaded ? '已在購物車' : '載入購物車'}</button>
+                    <button class="qr-del-btn" onclick="deleteQrOrder(${idx})"><i class="ph-bold ph-trash"></i> 刪除</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function openQrOrders() {
+        if (!isOnline) return notyf.error('離線模式無法接收掃碼訂單');
+        renderQrOrders();
+        openModal('qr-orders-modal');
+    }
+
+    // 以索引傳遞（清單每次資料變動都會重繪，索引與畫面一致），不把客人可控的 key 嵌進 onclick
+    function loadQrOrder(idx) {
+        const o = qrOrders[idx];
+        if (!o) return;
+        const table = String(o.table ?? '');
+        if (!ALL_TABLES.includes(table)) return notyf.error('這張單的桌號不存在');
+        if (loadedQrKeys.includes(o.key)) return notyf.error('這張單已經在購物車裡了');
+
+        const sel = document.getElementById('checkout-table');
+        if (cart.length && sel.value !== table) {
+            Swal.fire({
+                title: '購物車已有其他品項',
+                text: `要清空目前的購物車，改載入桌號 ${table} 的掃碼訂單嗎？`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: '清空並載入',
+                cancelButtonText: '取消',
+                heightAuto: false
+            }).then(res => { if (res.isConfirmed) applyQrOrderToCart(o.key, true); });
+            return;
+        }
+        applyQrOrderToCart(o.key, false);
+    }
+
+    function applyQrOrderToCart(key, replaceCart) {
+        const o = qrOrders.find(x => x.key === key);
+        if (!o) return notyf.error('這張單已被處理');
+        const table = String(o.table ?? '');
+        const parsed = qrArr(o.items).map(buildCartItemFromQr);
+        const okItems = parsed.filter(Boolean);
+        const missing = parsed.length - okItems.length;
+        if (!okItems.length) return notyf.error('這張單的品項都已下架，無法載入');
+
+        if (replaceCart) { cart = []; loadedQrKeys = []; }
+        cart.push(...okItems);
+        loadedQrKeys.push(o.key);
+        document.getElementById('checkout-table').value = table;
+
+        // 新開桌才帶入人數；已開桌的加點不收人頭費，欄位維持原狀
+        const people = Math.floor(Number(o.people) || 0), kids = Math.floor(Number(o.kids) || 0);
+        if (!activeTables[table] && people > 0) {
+            document.getElementById('head-count').value = people;
+            document.getElementById('kid-count').value = kids > 0 ? Math.min(kids, people) : '';
+        }
+
+        renderCart();
+        renderQrOrders();
+        closeModal('qr-orders-modal');
+        toggleMobileCart(true);
+
+        if (missing > 0) {
+            notyf.open({ type: 'error', duration: 5000, message: `有 ${missing} 個品項已下架或套餐內容已變更，未載入` });
+        } else if (okItems.some(it => it.type !== 'combo' && it.s <= 0)) {
+            notyf.open({ type: 'error', duration: 5000, message: '已載入，但有品項庫存不足，請確認' });
+        } else {
+            notyf.success(`已載入桌號 ${esc(table)} 的掃碼訂單，請確認後結帳`);
+        }
+    }
+
+    function deleteQrOrder(idx) {
+        const o = qrOrders[idx];
+        if (!o) return;
+        const key = o.key;
+        Swal.fire({
+            title: `刪除桌號 ${esc(o.table)} 的掃碼訂單？`,
+            text: '刪除後客人需要重新點餐',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#D96C6C',
+            confirmButtonText: '確定刪除',
+            cancelButtonText: '取消',
+            heightAuto: false
+        }).then(res => {
+            if (!res.isConfirmed) return;
+            loadedQrKeys = loadedQrKeys.filter(k => k !== key); // 自己刪的，不需要「已由其他裝置處理」的提醒
+            db.ref('qr_orders/' + key).remove().catch(e => notyf.error('刪除失敗: ' + e.message));
+        });
+    }
+
+    // 新訂單提示音（Web Audio，不需音檔）。瀏覽器要求先有使用者操作才能發聲，故在第一次觸碰時解鎖
+    let qrAudioCtx = null;
+    function unlockQrAudio() {
+        try {
+            if (!qrAudioCtx) {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (AC) qrAudioCtx = new AC();
+            }
+            if (qrAudioCtx && qrAudioCtx.state === 'suspended') qrAudioCtx.resume();
+        } catch (e) { /* 不支援就只靠畫面提示 */ }
+    }
+    document.addEventListener('pointerdown', unlockQrAudio, { passive: true, capture: true });
+
+    function playQrChime() {
+        try {
+            if (!qrAudioCtx || qrAudioCtx.state !== 'running') return;
+            const t0 = qrAudioCtx.currentTime;
+            [[880, 0], [1175, 0.2], [880, 0.6], [1175, 0.8]].forEach(([freq, at]) => {
+                const osc = qrAudioCtx.createOscillator();
+                const gain = qrAudioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.0001, t0 + at);
+                gain.gain.exponentialRampToValueAtTime(0.3, t0 + at + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.0001, t0 + at + 0.35);
+                osc.connect(gain);
+                gain.connect(qrAudioCtx.destination);
+                osc.start(t0 + at);
+                osc.stop(t0 + at + 0.4);
+            });
+        } catch (e) { /* 忽略 */ }
+    }
+
+    // --- 桌邊 QR Code ---
+    function qrOrderUrl(t) {
+        // 以目前 POS 的網址為基準（正式環境即 https://yupin-pos.com/order.html）；直接開檔案時退回正式網址
+        const base = location.protocol.startsWith('http') ? new URL('order.html', location.href).href : 'https://yupin-pos.com/order.html';
+        return `${base}?t=${encodeURIComponent(t)}`;
+    }
+
+    function openQrCodes() {
+        document.getElementById('qr-codes-grid').innerHTML = ALL_TABLES.map(t => {
+            const url = qrOrderUrl(t);
+            let svg = '';
+            try {
+                if (typeof qrcode === 'function') {
+                    const qr = qrcode(0, 'M');
+                    qr.addData(url);
+                    qr.make();
+                    svg = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+                }
+            } catch (e) { svg = ''; }
+            return `<div class="qr-card">
+                <div class="qr-card-title">桌號 ${esc(t)}</div>
+                ${svg ? `<div class="qr-card-code">${svg}</div>` : ''}
+                <div class="qr-card-hint">手機掃碼點餐</div>
+                <div class="qr-card-url">${esc(url)}</div>
+            </div>`;
+        }).join('');
+        document.documentElement.classList.add('print-qr');
+        openModal('qr-codes-modal');
     }
 
     let lastHistoryMode = 'day';
@@ -2470,12 +2948,13 @@
                         <div>
                             <strong style="font-size:1.1em; color:var(--text-main);">【${esc(o.pay)}】總計: <span style="color:var(--primary);">$${o.total}</span></strong>
                             ${o.table ? `<span style="color:var(--accent-green); font-weight:bold; margin-left:8px;">桌號 ${esc(o.table)}</span>` : ''}
+                            ${o.source === 'qr' ? `<span style="color:var(--text-muted); font-size:0.85em; margin-left:8px;"><i class="ph-bold ph-qr-code"></i> 掃碼</span>` : ''}
                         </div>
                         <div class="history-del-btn" onclick="deleteOrder('${o.firebaseKey}')"><i class="ph-bold ph-trash"></i> 退貨/刪除</div>
                     </div>
                     <span style="color:var(--text-muted); font-size:0.85em;"><i class="ph-bold ph-clock"></i> ${o.d} ${o.t}</span>
                     <div style="font-size:0.95em; color:var(--text-muted); margin-top:8px; line-height:1.4;"><i class="ph-bold ph-shopping-bag"></i> 內容: ${o.items.map(i=>`${esc(i.n)}${i.comboDetail?`[${esc(i.comboDetail)}]`:''}`).join(', ')}</div>
-                    ${o.headFee ? `<div style="font-size:0.9em; color:var(--primary); margin-top:4px;"><i class="ph-bold ph-users"></i> 人頭費 $${o.headFee}（折抵 $${o.headCredit || 0}）${o.people ? `・${o.people} 位` : ''}</div>` : ''}
+                    ${o.headFee ? `<div style="font-size:0.9em; color:var(--primary); margin-top:4px;"><i class="ph-bold ph-users"></i> 人頭費 $${o.headFee}（折抵 $${o.headCredit || 0}）${o.people ? `・${o.people} 位` : ''}${o.kids ? `（國小以下 ${o.kids} 位）` : ''}</div>` : ''}
                 </div>`;
             });
             html = `<div style="background:#F0FDF4; padding:16px; border-radius:12px; margin-bottom:16px; border:1px solid #C6F6D5; display:flex; gap:16px; flex-wrap:wrap;">
@@ -2607,7 +3086,7 @@
             allowOutsideClick: () => !Swal.isLoading()
         }).then(res => {
             if (!res.isConfirmed || !res.value) return;
-            const data = res.value.list.map(o => ({ "日期": o.d, "時間": o.t, "桌號": o.table||'', "總額": o.total, "毛利": o.profit, "支付方式": o.pay, "人數": o.people||'', "人頭費": o.headFee||0, "人頭折抵": o.headCredit||0, "備註": o.note, "商品明細": (o.items || []).map(i=>i.n + (i.comboDetail ? `[${i.comboDetail}]` : '')).join(',') }));
+            const data = res.value.list.map(o => ({ "日期": o.d, "時間": o.t, "桌號": o.table||'', "總額": o.total, "毛利": o.profit, "支付方式": o.pay, "人數": o.people||'', "國小以下": o.kids||'', "人頭費": o.headFee||0, "人頭折抵": o.headCredit||0, "來源": o.source === 'qr' ? '掃碼' : '', "備註": o.note, "商品明細": (o.items || []).map(i=>i.n + (i.comboDetail ? `[${i.comboDetail}]` : '')).join(',') }));
             const ws = XLSX.utils.json_to_sheet(data);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Sales");

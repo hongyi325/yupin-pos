@@ -1,0 +1,57 @@
+{
+  "rules": {
+    ".read": "auth != null && auth.token.email === 'pos@yupin-pos.com'",
+    ".write": "auth != null && auth.token.email === 'pos@yupin-pos.com'",
+
+    "orders": {
+      ".indexOn": ["d"]
+    },
+
+    "public_menu": {
+      ".read": true
+    },
+
+    "public_tables": {
+      ".read": true
+    },
+
+    "qr_orders": {
+      "$id": {
+        ".read": true,
+        ".write": "!data.exists() && newData.exists()",
+        ".validate": "$id.length <= 40 && $id.matches(/^[A-Za-z0-9_-]+$/) && newData.hasChildren(['table', 'items', 'ts'])",
+        "table": {
+          ".validate": "newData.isString() && newData.val().length <= 3 && newData.val().matches(/^[1-9][0-9]*$/)"
+        },
+        "people": {
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 99"
+        },
+        "kids": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 99"
+        },
+        "ts": {
+          ".validate": "newData.val() === now"
+        },
+        "items": {
+          "$i": {
+            ".validate": "$i.length <= 2 && $i.matches(/^[0-9]+$/) && newData.hasChildren(['id'])",
+            "id": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40"
+            },
+            "sel": {
+              "$j": {
+                ".validate": "$j.length == 1 && $j.matches(/^[0-9]$/) && newData.isString() && newData.val().length >= 1 && newData.val().length <= 40"
+              }
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}
